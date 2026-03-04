@@ -1,0 +1,11 @@
+[package]
+name              = "cheguers"
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "cheguers"
+path = "main.rs"
+
+[dependencies]
