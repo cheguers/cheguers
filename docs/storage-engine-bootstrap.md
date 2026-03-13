@@ -262,8 +262,13 @@ Local files:
 - `tigerbeetle/docs/coding/system-architecture.md`
 - `tigerbeetle/docs/operating/cluster.md`
 
-### Phase 0: correctness-only local store
++### Phase 1: single-shard durable engine
 
+- Segment log with checksums and replay.
+- Page-based graph store.
+- Adjacency segments for out-neighbors.
+- Simple free-space tracking.
+- Snapshots plus recovery tests.
 - Single process.
 - No replication.
 - Append-only command log.
@@ -273,19 +278,8 @@ Local files:
 
 Goal:
 
-- Lock the command model and recovery semantics before optimizing anything.
-
-### Phase 1: single-shard durable engine
-
-- Segment log with checksums and replay.
-- Page-based graph store.
-- Adjacency segments for out-neighbors.
-- Simple free-space tracking.
-- Snapshots plus recovery tests.
-
-Goal:
-
 - A shard can recover exactly from crash/replay.
+- Lock the command model and recovery semantics before optimizing anything.
 
 ### Phase 2: consensus and deterministic replicated shard-group
 
