@@ -262,6 +262,18 @@ Local files:
 - `tigerbeetle/docs/coding/system-architecture.md`
 - `tigerbeetle/docs/operating/cluster.md`
 
+### Phase 0: correctness-only local store
+
+- Single process.
+- No replication.
+- Append-only command log.
+- In-memory adjacency map rebuilt from log on startup.
+- Disk-backed object heap for nodes, edges, vectors.
+- Exact vector scan only.
+
+Goal:
+
+- Lock the command model and recovery semantics before optimizing anything.
 
 ### Phase 1: single-shard durable engine
 
