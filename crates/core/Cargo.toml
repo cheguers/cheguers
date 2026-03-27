@@ -1,11 +1,10 @@
 [package]
-name              = "cheguers"
+name              = "core"
 edition.workspace = true
 license.workspace = true
 version.workspace = true
 
-[[bin]]
-name = "cheguers"
-path = "main.rs"
+[lib]
+path = "src/core.rs"
 
 [dependencies]

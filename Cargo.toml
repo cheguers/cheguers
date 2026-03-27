@@ -1,6 +1,7 @@
 [workspace]
-members  = [ "cheguers" ]
-resolver = "3"
+default-members = ["crates/cheguers"]
+members         = ["crates/cheguers", "crates/core"]
+resolver        = "3"
 
 [workspace.package]
 edition = "2024"
@@ -12,3 +13,4 @@ version = "0.1.0"
 # name = "cheguers" 
 
 [workspace.dependencies]
+core = { path = "crates/core" }
