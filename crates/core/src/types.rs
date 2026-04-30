@@ -48,8 +48,19 @@ impl fmt::Display for NodeGroupIdx {
 /// Row index within a node group.
 pub type RowIdx = u64;
 
+/// Dense offset within a node table: `group_idx * NODE_GROUP_SIZE + row`.
+/// Used as the CSR key for edge adjacency lookups.
+pub type NodeOffset = u64;
+
 /// Offset within a structure (node offset, slot offset, etc.).
 pub type Offset = u64;
+
+/// Contiguous range of pages owned by a structure.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PageRange {
+  pub start_page: PageIdx,
+  pub num_pages:  u32,
+}
 
 /// The type of a property column.
 /// Defined here (not in catalog) so `PropertyValue::data_type()` has no circular dep.
@@ -61,6 +72,36 @@ pub enum DataType {
   String,
   Bytes,
   Vector { dim: u32 },
+}
+
+impl DataType {
+  /// On-disk discriminant byte for this type.
+  #[must_use]
+  pub fn discriminant(&self) -> u8 {
+    match self {
+      Self::Bool => 0,
+      Self::Int64 => 1,
+      Self::Float64 => 2,
+      Self::String => 3,
+      Self::Bytes => 4,
+      Self::Vector { .. } => 5,
+    }
+  }
+
+  /// Reconstruct from an on-disk discriminant byte.
+  /// Returns `None` if the discriminant is unknown.
+  #[must_use]
+  pub fn from_discriminant(d: u8) -> Option<Self> {
+    match d {
+      0 => Some(Self::Bool),
+      1 => Some(Self::Int64),
+      2 => Some(Self::Float64),
+      3 => Some(Self::String),
+      4 => Some(Self::Bytes),
+      5 => Some(Self::Vector { dim: 0 }),
+      _ => None,
+    }
+  }
 }
 
 impl fmt::Display for DataType {

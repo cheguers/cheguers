@@ -25,4 +25,13 @@ impl StorageConfig {
   pub const LOG_SEGMENT_SIZE_LOG2: u32 = 8;
   /// 256 pages per log segment.
   pub const LOG_SEGMENT_SIZE: u64 = 1 << Self::LOG_SEGMENT_SIZE_LOG2;
+
+  /// Data file suffix.
+  pub const FILE_SUFFIX: &str = "cheguers";
+
+  /// Storage format version.
+  pub const STORAGE_VERSION: u32 = 1;
 }
+
+/// Magic bytes written at the start of every data file.
+pub const MAGIC_BYTES: &[u8; 16] = b"CHEGUERSDB\0\0\0\0\0\0";
