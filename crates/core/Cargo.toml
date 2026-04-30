@@ -5,6 +5,6 @@ license.workspace = true
 version.workspace = true
 
 [lib]
-path = "src/core.rs"
+path = "src/lib.rs"
 
 [dependencies]
