@@ -3,13 +3,12 @@ use std::sync::Arc;
 
 use crate::catalog::{Catalog, NodeLabelEntry};
 use crate::command::Command;
-use crate::types::{LabelId, NodeId, NodeOffset, PropertyValue};
-
 use crate::error::StorageError;
 use crate::io::file::FileManager;
+use crate::types::{LabelId, NodeId, NodeOffset, PropertyValue};
+
 use super::node_table::{NodeGroupPageInfo, NodeRecord, NodeTable};
 
-/// Top-level in-memory node storage. Maps each LabelId to its NodeTable.
 /// `apply_command` is the single write entry point — mirrors the log-driven
 /// state machine described in the design doc.
 pub struct NodeStore {
@@ -18,7 +17,6 @@ pub struct NodeStore {
 }
 
 impl NodeStore {
-  /// Build a NodeStore pre-populated with one empty NodeTable per label in the catalog.
   pub fn new(catalog: Arc<Catalog>) -> Self {
     let tables = catalog
       .node_labels
@@ -28,8 +26,8 @@ impl NodeStore {
     Self { tables, catalog }
   }
 
-  /// Apply a command from the log. Only `CreateNode` and `DeleteNode` are handled here.
-  /// Other variants are silently ignored (edges, vectors are separate stores in later phases).
+  /// Only `CreateNode` and `DeleteNode` are handled here; other variants are silently
+  /// ignored (edges and vectors are owned by their dedicated stores).
   pub fn apply_command(&mut self, cmd: &Command) -> Result<(), StorageError> {
     match cmd {
       Command::CreateNode { node_id, label_id, properties } => {
@@ -43,75 +41,47 @@ impl NodeStore {
           .get_mut(label_id)
           .ok_or(StorageError::LabelNotFound { label_id: *label_id })?;
         table.insert_node(*node_id, &aligned)?;
+        Ok(())
       }
-      Command::DeleteNode { node_id } => {
-        // DeleteNode doesn't carry a label_id — scan all tables.
-        // Only NodeNotFound is a "keep scanning" signal; all other errors propagate.
-        let mut found = false;
-        for table in self.tables.values_mut() {
-          match table.delete_node(*node_id) {
-            Ok(()) => {
-              found = true;
-              break;
-            }
-            Err(StorageError::NodeNotFound { .. }) => continue,
-            Err(e) => return Err(e),
-          }
-        }
-        if !found {
-          return Err(StorageError::NodeNotFound { node_id: *node_id });
-        }
-      }
-      // Edges, vectors, and edge deletions are out of scope for this store.
-      Command::CreateEdge { .. } | Command::UpsertVector { .. } | Command::DeleteEdge { .. } => {}
+      Command::DeleteNode { node_id } => self
+        .tables
+        .values_mut()
+        .find_map(|table| match table.delete_node(*node_id) {
+          Ok(()) => Some(Ok(())),
+          Err(StorageError::NodeNotFound { .. }) => None,
+          Err(e) => Some(Err(e)),
+        })
+        .unwrap_or(Err(StorageError::NodeNotFound { node_id: *node_id })),
+      Command::CreateEdge { .. } | Command::UpsertVector { .. } | Command::DeleteEdge { .. } => Ok(()),
     }
-    Ok(())
   }
 
   #[must_use]
-  pub fn get_node(
-    &self,
-    node_id: NodeId,
-    label_id: LabelId,
-  ) -> Option<Vec<Option<PropertyValue>>> {
+  pub fn get_node(&self, node_id: NodeId, label_id: LabelId) -> Option<Vec<Option<PropertyValue>>> {
     self.tables.get(&label_id)?.get_node(node_id).ok().flatten()
   }
 
   pub fn scan_label(&self, label_id: LabelId) -> impl Iterator<Item = NodeRecord> + '_ {
-    // Return an empty iterator for unknown labels rather than wrapping in Option.
-    self
-      .tables
-      .get(&label_id)
-      .into_iter()
-      .flat_map(|t| t.iter())
+    self.tables.get(&label_id).into_iter().flat_map(NodeTable::iter)
   }
 
   #[must_use]
   pub fn num_nodes(&self, label_id: LabelId) -> u64 {
-    self.tables.get(&label_id).map(|t| t.num_nodes()).unwrap_or(0)
+    self.tables.get(&label_id).map_or(0, NodeTable::num_nodes)
   }
 
-  /// O(1) dense-offset lookup across all tables.
   #[must_use]
   pub fn node_offset(&self, node_id: NodeId) -> Option<NodeOffset> {
-    for table in self.tables.values() {
-      if let Some(off) = table.node_offset(node_id) {
-        return Some(off);
-      }
-    }
-    None
+    self.tables.values().find_map(|t| t.node_offset(node_id))
   }
 
-  /// Collect all node_id → offset mappings.
   #[must_use]
   pub fn node_offset_map(&self) -> HashMap<NodeId, NodeOffset> {
-    let mut map = HashMap::new();
-    for table in self.tables.values() {
-      for (&nid, &off) in &table.node_id_to_offset {
-        map.insert(nid, off);
-      }
-    }
-    map
+    self
+      .tables
+      .values()
+      .flat_map(|t| t.node_id_to_offset.iter().map(|(&n, &o)| (n, o)))
+      .collect()
   }
 
   pub fn flush_all(&mut self, fm: &mut FileManager) -> Result<(), StorageError> {
@@ -126,35 +96,39 @@ impl NodeStore {
     self.tables.values().flat_map(|t| t.page_infos().to_vec()).collect()
   }
 
-  /// Load a NodeStore from disk using page metadata.
   pub fn load(
     catalog: Arc<Catalog>,
     page_infos: &[NodeGroupPageInfo],
     fm: &mut FileManager,
   ) -> Result<Self, StorageError> {
-    let mut tables = HashMap::new();
-    for entry in &catalog.node_labels {
-      // TODO: include label_id in NodeGroupPageInfo for correct per-label filtering.
-      let table = NodeTable::load(entry.clone(), page_infos.to_vec(), fm)?;
-      tables.insert(entry.label_id, table);
-    }
+    // TODO: include label_id in NodeGroupPageInfo for correct per-label filtering.
+    let tables = catalog
+      .node_labels
+      .iter()
+      .map(|entry| {
+        NodeTable::load(entry.clone(), page_infos.to_vec(), fm).map(|t| (entry.label_id, t))
+      })
+      .collect::<Result<HashMap<_, _>, _>>()?;
     Ok(Self { tables, catalog })
   }
 }
 
-/// Map a flat `&[PropertyValue]` from a command onto the schema's column list positionally.
-/// Extra values beyond the schema are ignored.
-/// Missing values (fewer values than columns) become `None`.
+/// Maps a flat `&[PropertyValue]` from a command onto the schema's column list positionally.
+/// Extra values are dropped; missing values become `None`.
 fn align_properties(schema: &NodeLabelEntry, values: &[PropertyValue]) -> Vec<Option<PropertyValue>> {
-  schema.properties.iter().enumerate().map(|(i, _)| values.get(i).cloned()).collect()
+  schema
+    .properties
+    .iter()
+    .enumerate()
+    .map(|(i, _)| values.get(i).cloned())
+    .collect()
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
   use crate::catalog::{Catalog, NodeLabelEntry, PropertyDef};
-  use crate::types::DataType;
-  use crate::types::{ColumnId, EdgeId, LabelId, NodeId, TableId};
+  use crate::types::{ColumnId, DataType, EdgeId, LabelId, NodeId, TableId};
 
   fn catalog_with_person() -> Catalog {
     Catalog {
@@ -178,7 +152,7 @@ mod tests {
           },
         ],
       }],
-      edge_types: vec![],
+      edge_types:  vec![],
     }
   }
 

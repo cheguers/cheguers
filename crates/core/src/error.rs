@@ -23,18 +23,16 @@ impl fmt::Display for StorageError {
       Self::ColumnTypeMismatch { expected, got } => {
         write!(f, "column type mismatch: expected {expected}, got {got}")
       }
-      Self::NodeGroupFull => write!(f, "node group is full"),
-      Self::EdgeGroupFull => write!(f, "edge group is full"),
-      Self::RowOutOfBounds { row, len } => {
-        write!(f, "row {row} is out of bounds (len={len})")
-      }
+      Self::NodeGroupFull => f.write_str("node group is full"),
+      Self::EdgeGroupFull => f.write_str("edge group is full"),
+      Self::RowOutOfBounds { row, len } => write!(f, "row {row} is out of bounds (len={len})"),
       Self::LabelNotFound { label_id } => write!(f, "label {label_id} not found"),
       Self::NodeNotFound { node_id } => write!(f, "node {node_id} not found"),
       Self::EdgeNotFound { edge_id } => write!(f, "edge {edge_id} not found"),
       Self::SerDe(msg) => write!(f, "serialization error: {msg}"),
       Self::Io(msg) => write!(f, "I/O error: {msg}"),
-      Self::CorruptHeader => write!(f, "corrupt database header"),
-      Self::CsrEdgeGroupFull => write!(f, "CSR edge group is full"),
+      Self::CorruptHeader => f.write_str("corrupt database header"),
+      Self::CsrEdgeGroupFull => f.write_str("CSR edge group is full"),
     }
   }
 }

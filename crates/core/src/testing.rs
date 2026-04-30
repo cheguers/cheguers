@@ -1,9 +1,8 @@
 //! Shared test fixtures for storage layer tests.
 
 use crate::catalog::{Catalog, NodeLabelEntry, PropertyDef};
-use crate::types::DataType;
 use crate::command::Command;
-use crate::types::{ColumnId, LabelId, NodeId, PropertyValue, TableId};
+use crate::types::{ColumnId, DataType, LabelId, NodeId, PropertyValue, TableId};
 
 pub fn person_schema() -> NodeLabelEntry {
   NodeLabelEntry {

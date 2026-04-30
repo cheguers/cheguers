@@ -1,48 +1,28 @@
 use std::fmt;
 
-/// Logical IDs everywhere — no raw physical pointers across pages on disk.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct NodeId(pub u64);
+macro_rules! id_newtype {
+  ($($name:ident($inner:ty)),* $(,)?) => {
+    $(
+      #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+      pub struct $name(pub $inner);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct EdgeId(pub u64);
-
-/// Used to distinguish node labels and edge types in the catalog.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct LabelId(pub u32);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct ColumnId(pub u32);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TableId(pub u32);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct PageIdx(pub u64);
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct NodeGroupIdx(pub u64);
-
-impl fmt::Display for NodeId {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
+      impl fmt::Display for $name {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+          fmt::Display::fmt(&self.0, f)
+        }
+      }
+    )*
+  };
 }
-impl fmt::Display for EdgeId {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
-}
-impl fmt::Display for LabelId {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
-}
-impl fmt::Display for ColumnId {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
-}
-impl fmt::Display for TableId {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
-}
-impl fmt::Display for PageIdx {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
-}
-impl fmt::Display for NodeGroupIdx {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) }
+
+id_newtype! {
+  NodeId(u64),
+  EdgeId(u64),
+  LabelId(u32),
+  ColumnId(u32),
+  TableId(u32),
+  PageIdx(u64),
+  NodeGroupIdx(u64),
 }
 
 /// Row index within a node group.
@@ -62,7 +42,6 @@ pub struct PageRange {
   pub num_pages:  u32,
 }
 
-/// The type of a property column.
 /// Defined here (not in catalog) so `PropertyValue::data_type()` has no circular dep.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DataType {
@@ -75,7 +54,6 @@ pub enum DataType {
 }
 
 impl DataType {
-  /// On-disk discriminant byte for this type.
   #[must_use]
   pub fn discriminant(&self) -> u8 {
     match self {
@@ -88,30 +66,29 @@ impl DataType {
     }
   }
 
-  /// Reconstruct from an on-disk discriminant byte.
   /// Returns `None` if the discriminant is unknown.
   #[must_use]
   pub fn from_discriminant(d: u8) -> Option<Self> {
-    match d {
-      0 => Some(Self::Bool),
-      1 => Some(Self::Int64),
-      2 => Some(Self::Float64),
-      3 => Some(Self::String),
-      4 => Some(Self::Bytes),
-      5 => Some(Self::Vector { dim: 0 }),
-      _ => None,
-    }
+    Some(match d {
+      0 => Self::Bool,
+      1 => Self::Int64,
+      2 => Self::Float64,
+      3 => Self::String,
+      4 => Self::Bytes,
+      5 => Self::Vector { dim: 0 },
+      _ => return None,
+    })
   }
 }
 
 impl fmt::Display for DataType {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Bool => write!(f, "Bool"),
-      Self::Int64 => write!(f, "Int64"),
-      Self::Float64 => write!(f, "Float64"),
-      Self::String => write!(f, "String"),
-      Self::Bytes => write!(f, "Bytes"),
+      Self::Bool => f.write_str("Bool"),
+      Self::Int64 => f.write_str("Int64"),
+      Self::Float64 => f.write_str("Float64"),
+      Self::String => f.write_str("String"),
+      Self::Bytes => f.write_str("Bytes"),
       Self::Vector { dim } => write!(f, "Vector({dim})"),
     }
   }
@@ -127,7 +104,6 @@ pub enum PropertyValue {
 }
 
 impl PropertyValue {
-  /// Returns the `DataType` corresponding to this value's variant.
   #[must_use]
   pub fn data_type(&self) -> DataType {
     match self {
@@ -143,10 +119,10 @@ impl PropertyValue {
 impl fmt::Display for PropertyValue {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Bool(b) => write!(f, "{b}"),
-      Self::Int64(n) => write!(f, "{n}"),
-      Self::Float64(x) => write!(f, "{x}"),
-      Self::String(s) => write!(f, "{s}"),
+      Self::Bool(b) => fmt::Display::fmt(b, f),
+      Self::Int64(n) => fmt::Display::fmt(n, f),
+      Self::Float64(x) => fmt::Display::fmt(x, f),
+      Self::String(s) => f.write_str(s),
       Self::Bytes(b) => write!(f, "<{} bytes>", b.len()),
     }
   }

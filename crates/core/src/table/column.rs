@@ -1,10 +1,8 @@
 use crate::config::StorageConfig;
-use crate::types::{ColumnId, DataType, PropertyValue, RowIdx};
-
 use crate::error::StorageError;
 use crate::io::binary;
+use crate::types::{ColumnId, DataType, PropertyValue, RowIdx};
 
-/// The underlying typed storage for a column chunk.
 enum ColumnData {
   Bool(Vec<bool>),
   Int64(Vec<i64>),
@@ -66,9 +64,6 @@ impl ColumnChunk {
     self.null_mask.get(row as usize).copied().unwrap_or(false)
   }
 
-  /// Append a value (or null) to this column.
-  /// Returns `StorageError::NodeGroupFull` if at capacity.
-  /// Returns `StorageError::ColumnTypeMismatch` if the value type doesn't match.
   pub fn append_value(&mut self, value: Option<&PropertyValue>) -> Result<(), StorageError> {
     if self.is_full() {
       return Err(StorageError::NodeGroupFull);
@@ -88,7 +83,6 @@ impl ColumnChunk {
     Ok(())
   }
 
-  /// Retrieve a value at the given row index. Returns `None` if null.
   #[must_use = "ignoring a value read is a bug"]
   pub fn get(&self, row: RowIdx) -> Result<Option<PropertyValue>, StorageError> {
     if row >= self.num_rows {
@@ -100,36 +94,30 @@ impl ColumnChunk {
     Ok(Some(self.read_value(row)))
   }
 
-  /// How many bytes needed to serialize this column.
   #[must_use]
   pub fn serialized_len(&self) -> usize {
-    let base = 4 + self.null_mask.len().div_ceil(8); // num_rows + null_mask
+    let base = 4 + self.null_mask.len().div_ceil(8);
     let num = self.num_rows as usize;
-    base + match &self.data {
+    let payload = match &self.data {
       ColumnData::Bool(_) => num,
-      ColumnData::Int64(_) => num * 8,
-      ColumnData::Float64(_) => num * 8,
+      ColumnData::Int64(_) | ColumnData::Float64(_) => num * 8,
       ColumnData::String(v) => {
-        let offsets_size = (num + 1) * 4;
-        let data_size: usize = v.iter().map(|s| s.as_ref().map(|s| s.len()).unwrap_or(0)).sum();
-        offsets_size + data_size
+        let data: usize = v.iter().flatten().map(String::len).sum();
+        (num + 1) * 4 + data
       }
       ColumnData::Bytes(v) => {
-        let offsets_size = (num + 1) * 4;
-        let data_size: usize = v.iter().map(|b| b.as_ref().map(|b| b.len()).unwrap_or(0)).sum();
-        offsets_size + data_size
+        let data: usize = v.iter().flatten().map(Vec::len).sum();
+        (num + 1) * 4 + data
       }
-    }
+    };
+    base + payload
   }
 
-  /// Serialize this column into a byte buffer. Returns bytes written.
-  /// Format: [num_rows: u32] [null_mask: bit-packed] [data...]
+  /// Format: `[num_rows: u32] [null_mask: bit-packed] [data...]`
   pub fn serialize(&self, buf: &mut [u8]) -> Result<usize, StorageError> {
-    let mut pos = 0usize;
+    let mut pos = 0;
     binary::write_u32(buf, &mut pos, self.num_rows as u32);
-
-    let null_bytes = binary::pack_bitmask(&self.null_mask);
-    binary::write_bytes(buf, &mut pos, &null_bytes);
+    binary::write_bytes(buf, &mut pos, &binary::pack_bitmask(&self.null_mask));
 
     match &self.data {
       ColumnData::Bool(v) => {
@@ -147,54 +135,41 @@ impl ColumnChunk {
           binary::write_f64(buf, &mut pos, x);
         }
       }
-      ColumnData::String(v) => self.serialize_var_width(buf, &mut pos, v, |s| s.as_bytes()),
-      ColumnData::Bytes(v) => self.serialize_var_width(buf, &mut pos, v, |b| b.as_slice()),
+      ColumnData::String(v) => Self::serialize_var_width(buf, &mut pos, v, |s| s.as_bytes()),
+      ColumnData::Bytes(v) => Self::serialize_var_width(buf, &mut pos, v, Vec::as_slice),
     }
 
     Ok(pos)
   }
 
-  /// Deserialize from a byte buffer.
-  pub fn deserialize(column_id: ColumnId, data_type: DataType, buf: &[u8]) -> Result<Self, StorageError> {
+  pub fn deserialize(
+    column_id: ColumnId,
+    data_type: DataType,
+    buf: &[u8],
+  ) -> Result<Self, StorageError> {
     if buf.len() < 4 {
       return Err(StorageError::SerDe("buffer too short for num_rows".into()));
     }
-    let mut pos = 0usize;
+    let mut pos = 0;
     let num_rows = binary::read_u32(buf, &mut pos) as u64;
+    let n = num_rows as usize;
 
-    let null_bytes_len = (num_rows as usize).div_ceil(8);
-    let null_bytes = binary::read_bytes(buf, &mut pos, null_bytes_len);
-    let null_mask = binary::unpack_bitmask(null_bytes, num_rows as usize);
+    let mask_bytes = binary::read_bytes(buf, &mut pos, n.div_ceil(8));
+    let null_mask = binary::unpack_bitmask(mask_bytes, n);
 
     let data = match &data_type {
-      DataType::Bool => {
-        let mut v = Vec::with_capacity(num_rows as usize);
-        for _ in 0..num_rows {
-          v.push(binary::read_u8(buf, &mut pos) != 0);
-        }
-        ColumnData::Bool(v)
-      }
-      DataType::Int64 => {
-        let mut v = Vec::with_capacity(num_rows as usize);
-        for _ in 0..num_rows {
-          v.push(binary::read_i64(buf, &mut pos));
-        }
-        ColumnData::Int64(v)
-      }
-      DataType::Float64 => {
-        let mut v = Vec::with_capacity(num_rows as usize);
-        for _ in 0..num_rows {
-          v.push(binary::read_f64(buf, &mut pos));
-        }
-        ColumnData::Float64(v)
-      }
-      DataType::String => {
-        let v = Self::deserialize_var_width_str(buf, &mut pos, num_rows)?;
-        ColumnData::String(v)
-      }
+      DataType::Bool => ColumnData::Bool(
+        (0..n).map(|_| binary::read_u8(buf, &mut pos) != 0).collect(),
+      ),
+      DataType::Int64 => ColumnData::Int64(
+        (0..n).map(|_| binary::read_i64(buf, &mut pos)).collect(),
+      ),
+      DataType::Float64 => ColumnData::Float64(
+        (0..n).map(|_| binary::read_f64(buf, &mut pos)).collect(),
+      ),
+      DataType::String => ColumnData::String(Self::deserialize_var_width_str(buf, &mut pos, n)?),
       DataType::Bytes | DataType::Vector { .. } => {
-        let v = Self::deserialize_var_width_bytes(buf, &mut pos, num_rows)?;
-        ColumnData::Bytes(v)
+        ColumnData::Bytes(Self::deserialize_var_width_bytes(buf, &mut pos, n)?)
       }
     };
 
@@ -202,7 +177,6 @@ impl ColumnChunk {
   }
 
   fn serialize_var_width<T>(
-    &self,
     buf: &mut [u8],
     pos: &mut usize,
     values: &[Option<T>],
@@ -210,88 +184,71 @@ impl ColumnChunk {
   ) {
     let num = values.len();
     let offsets_start = *pos;
-
-    // Write placeholder u32 offsets — filled in below.
-    for _ in 0..num + 1 {
-      binary::write_u32(buf, pos, 0);
-    }
-
+    *pos += (num + 1) * 4;
     let data_start = *pos;
+
     for (i, val) in values.iter().enumerate() {
       let off = (*pos - data_start) as u32;
-      let off_pos = offsets_start + i * 4;
-      buf[off_pos..off_pos + 4].copy_from_slice(&off.to_le_bytes());
-
+      buf[offsets_start + i * 4..offsets_start + i * 4 + 4].copy_from_slice(&off.to_le_bytes());
       if let Some(v) = val {
         binary::write_bytes(buf, pos, to_bytes(v));
       }
     }
-    // Sentinel offset
     let sentinel = (*pos - data_start) as u32;
-    let sentinel_pos = offsets_start + num * 4;
-    buf[sentinel_pos..sentinel_pos + 4].copy_from_slice(&sentinel.to_le_bytes());
+    buf[offsets_start + num * 4..offsets_start + num * 4 + 4].copy_from_slice(&sentinel.to_le_bytes());
   }
 
-  fn deserialize_var_width_str(buf: &[u8], pos: &mut usize, num_rows: u64) -> Result<Vec<Option<String>>, StorageError> {
-    let offsets = Self::read_offset_array(buf, pos, num_rows)?;
+  fn deserialize_var_width_str(
+    buf: &[u8],
+    pos: &mut usize,
+    n: usize,
+  ) -> Result<Vec<Option<String>>, StorageError> {
+    let offsets = Self::read_offset_array(buf, pos, n);
     let data_start = *pos;
-    let mut values = Vec::with_capacity(num_rows as usize);
-    for i in 0..num_rows as usize {
-      let start = offsets[i] as usize;
-      let end = offsets[i + 1] as usize;
-      if start == end {
-        values.push(Some(String::new()));
-      } else {
-        let bytes = &buf[data_start + start..data_start + end];
-        let s = String::from_utf8(bytes.to_vec())
-          .map_err(|e| StorageError::SerDe(format!("invalid UTF-8: {e}")))?;
-        values.push(Some(s));
-      }
-    }
-    *pos = data_start + offsets[num_rows as usize] as usize;
+    let values = (0..n)
+      .map(|i| {
+        let bytes = &buf[data_start + offsets[i] as usize..data_start + offsets[i + 1] as usize];
+        String::from_utf8(bytes.to_vec())
+          .map(Some)
+          .map_err(|e| StorageError::SerDe(format!("invalid UTF-8: {e}")))
+      })
+      .collect::<Result<Vec<_>, _>>()?;
+    *pos = data_start + offsets[n] as usize;
     Ok(values)
   }
 
-  fn deserialize_var_width_bytes(buf: &[u8], pos: &mut usize, num_rows: u64) -> Result<Vec<Option<Vec<u8>>>, StorageError> {
-    let offsets = Self::read_offset_array(buf, pos, num_rows)?;
+  fn deserialize_var_width_bytes(
+    buf: &[u8],
+    pos: &mut usize,
+    n: usize,
+  ) -> Result<Vec<Option<Vec<u8>>>, StorageError> {
+    let offsets = Self::read_offset_array(buf, pos, n);
     let data_start = *pos;
-    let mut values = Vec::with_capacity(num_rows as usize);
-    for i in 0..num_rows as usize {
-      let start = offsets[i] as usize;
-      let end = offsets[i + 1] as usize;
-      if start == end {
-        values.push(Some(Vec::new()));
-      } else {
-        values.push(Some(buf[data_start + start..data_start + end].to_vec()));
-      }
-    }
-    *pos = data_start + offsets[num_rows as usize] as usize;
+    let values = (0..n)
+      .map(|i| Some(buf[data_start + offsets[i] as usize..data_start + offsets[i + 1] as usize].to_vec()))
+      .collect();
+    *pos = data_start + offsets[n] as usize;
     Ok(values)
   }
 
-  fn read_offset_array(buf: &[u8], pos: &mut usize, num_rows: u64) -> Result<Vec<u32>, StorageError> {
-    let count = (num_rows + 1) as usize;
-    let mut offsets = Vec::with_capacity(count);
-    for _ in 0..count {
-      offsets.push(binary::read_u32(buf, pos));
-    }
-    Ok(offsets)
+  fn read_offset_array(buf: &[u8], pos: &mut usize, n: usize) -> Vec<u32> {
+    (0..=n).map(|_| binary::read_u32(buf, pos)).collect()
   }
 
   fn type_check(&self, value: &PropertyValue) -> Result<(), StorageError> {
-    // Vector columns accept Bytes values (raw-encoded float arrays).
     let compatible = matches!(
       (&self.data_type, value.data_type()),
       (DataType::Vector { .. }, DataType::Bytes)
     ) || self.data_type == value.data_type();
 
-    if !compatible {
-      return Err(StorageError::ColumnTypeMismatch {
+    if compatible {
+      Ok(())
+    } else {
+      Err(StorageError::ColumnTypeMismatch {
         expected: self.data_type.clone(),
         got:      value.data_type(),
-      });
+      })
     }
-    Ok(())
   }
 
   fn push_default(&mut self) {
@@ -311,7 +268,7 @@ impl ColumnChunk {
       (ColumnData::Float64(v), PropertyValue::Float64(x)) => v.push(*x),
       (ColumnData::String(v), PropertyValue::String(s)) => v.push(Some(s.clone())),
       (ColumnData::Bytes(v), PropertyValue::Bytes(b)) => v.push(Some(b.clone())),
-      _ => unreachable!("type_check should have caught this"),
+      _ => unreachable!("type_check guarantees variant compatibility"),
     }
   }
 
@@ -321,12 +278,12 @@ impl ColumnChunk {
       ColumnData::Bool(v) => PropertyValue::Bool(v[i]),
       ColumnData::Int64(v) => PropertyValue::Int64(v[i]),
       ColumnData::Float64(v) => PropertyValue::Float64(v[i]),
-      ColumnData::String(v) => {
-        PropertyValue::String(v[i].clone().expect("non-null row had None in String data"))
-      }
-      ColumnData::Bytes(v) => {
-        PropertyValue::Bytes(v[i].clone().expect("non-null row had None in Bytes data"))
-      }
+      ColumnData::String(v) => PropertyValue::String(
+        v[i].clone().expect("non-null row contains a String"),
+      ),
+      ColumnData::Bytes(v) => PropertyValue::Bytes(
+        v[i].clone().expect("non-null row contains Bytes"),
+      ),
     }
   }
 }

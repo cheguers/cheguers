@@ -11,11 +11,11 @@ pub mod types;
 #[cfg(test)]
 pub mod testing;
 
+pub use error::StorageError;
+pub use io::page::Page;
 pub use state::database::StorageManager;
 pub use state::edge_store::EdgeStore;
 pub use state::edge_table::EdgeTable;
 pub use table::edge::CSREdgeRecord;
-pub use io::page::Page;
-pub use error::StorageError;
 
 pub fn init() {}

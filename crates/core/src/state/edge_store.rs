@@ -1,53 +1,45 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::catalog::Catalog;
-use crate::command::Command;
 use crate::adjacency::EdgeRef;
+use crate::catalog::{Catalog, EdgeTypeEntry};
+use crate::command::Command;
+use crate::error::StorageError;
+use crate::io::file::FileManager;
 use crate::table::edge::CSREdgeRecord;
-use crate::state::edge_table::EdgeTable; use crate::error::StorageError;
 use crate::types::{Direction, EdgeId, LabelId, NodeId, NodeOffset, PropertyValue};
 
-use super::edge_table::CSREdgeGroupPageInfo;
-use crate::io::file::FileManager;
+use super::edge_table::{CSREdgeGroupPageInfo, EdgeTable};
 
 pub struct EdgeStore {
   tables:       HashMap<LabelId, EdgeTable>,
-  /// Maps NodeId → dense node offset (group_idx * NODE_GROUP_SIZE + row).
-  /// Populated by StorageManager from NodeTable before applying edge commands.
+  /// Maps `NodeId` → dense node offset (`group_idx * NODE_GROUP_SIZE + row`).
+  /// Populated by `StorageManager` from `NodeTable` before applying edge commands.
   node_offsets: HashMap<NodeId, NodeOffset>,
   catalog:      Arc<Catalog>,
 }
 
 impl EdgeStore {
   pub fn new(catalog: Arc<Catalog>) -> Self {
-    let mut tables = HashMap::new();
-    for edge_type in &catalog.edge_types {
-      tables.insert(edge_type.label_id, EdgeTable::new(edge_type.clone()));
-    }
+    let tables = catalog
+      .edge_types
+      .iter()
+      .map(|edge_type| (edge_type.label_id, EdgeTable::new(edge_type.clone())))
+      .collect();
     Self { tables, node_offsets: HashMap::new(), catalog }
   }
 
-  /// Merge in node‑offset mappings (called by StorageManager before apply).
   pub fn update_node_offsets(&mut self, offsets: &HashMap<NodeId, NodeOffset>) {
     self.node_offsets.extend(offsets);
   }
 
-  /// Apply a command. For `CreateEdge`, the from/to node offsets must have been
-  /// set via `update_node_offsets` before this call.
+  /// For `CreateEdge`, the from/to node offsets must have been registered
+  /// via `update_node_offsets` before this call.
   pub fn apply_command(&mut self, cmd: &Command) -> Result<(), StorageError> {
     match cmd {
       Command::CreateEdge { edge_id, type_id, from, to, properties } => {
-        let from_offset = self
-          .node_offsets
-          .get(from)
-          .copied()
-          .ok_or(StorageError::NodeNotFound { node_id: *from })?;
-        let to_offset = self
-          .node_offsets
-          .get(to)
-          .copied()
-          .ok_or(StorageError::NodeNotFound { node_id: *to })?;
+        let from_offset = self.lookup_offset(*from)?;
+        let to_offset = self.lookup_offset(*to)?;
 
         let schema = self
           .catalog
@@ -58,21 +50,15 @@ impl EdgeStore {
           .tables
           .get_mut(type_id)
           .ok_or(StorageError::LabelNotFound { label_id: *type_id })?;
-        table.insert_edge(*edge_id, *from, *to, from_offset, to_offset, &aligned)?;
-        Ok(())
+        table.insert_edge(*edge_id, *from, *to, from_offset, to_offset, &aligned)
       }
-      Command::DeleteEdge { edge_id } => {
-        for table in self.tables.values_mut() {
-          if let Ok(Some(_record)) = table.get_edge(*edge_id) {
-            table.delete_edge(*edge_id)?;
-            return Ok(());
-          }
-        }
-        Err(StorageError::EdgeNotFound { edge_id: *edge_id })
-      }
-      Command::CreateNode { .. } | Command::UpsertVector { .. } | Command::DeleteNode { .. } => {
-        Ok(())
-      }
+      Command::DeleteEdge { edge_id } => self
+        .tables
+        .values_mut()
+        .find(|t| matches!(t.get_edge(*edge_id), Ok(Some(_))))
+        .map(|t| t.delete_edge(*edge_id))
+        .unwrap_or(Err(StorageError::EdgeNotFound { edge_id: *edge_id })),
+      Command::CreateNode { .. } | Command::UpsertVector { .. } | Command::DeleteNode { .. } => Ok(()),
     }
   }
 
@@ -81,22 +67,20 @@ impl EdgeStore {
   }
 
   pub fn scan_type(&self, type_id: LabelId) -> impl Iterator<Item = CSREdgeRecord> + '_ {
-    self.tables.get(&type_id).into_iter().flat_map(|t| t.iter())
+    self.tables.get(&type_id).into_iter().flat_map(EdgeTable::iter)
   }
 
   pub fn num_edges(&self, type_id: LabelId) -> u64 {
-    self.tables.get(&type_id).map(|t| t.num_edges()).unwrap_or(0)
+    self.tables.get(&type_id).map_or(0, EdgeTable::num_edges)
   }
 
-  /// CSR-based neighbor lookup. Appends `EdgeRef`s for a node in the given direction.
-  /// `node_offset` is the dense offset of the query node.
+  /// Appends `EdgeRef`s for `node_offset` (dense offset) in the given direction.
   pub fn neighbors(&self, node_offset: NodeOffset, dir: Direction, out: &mut Vec<EdgeRef>) {
     for table in self.tables.values() {
       table.neighbors_into(node_offset, dir, out);
     }
   }
 
-  /// Return the offset map for consumption by the upper layer.
   #[must_use]
   pub fn node_offsets(&self) -> &HashMap<NodeId, NodeOffset> {
     &self.node_offsets
@@ -114,49 +98,63 @@ impl EdgeStore {
     self.tables.values().flat_map(|t| t.page_infos().to_vec()).collect()
   }
 
-  /// Load an EdgeStore from disk using page metadata.
   pub fn load(
     catalog: Arc<Catalog>,
     page_infos: &[CSREdgeGroupPageInfo],
     fm: &mut FileManager,
   ) -> Result<Self, StorageError> {
-    let mut tables = HashMap::new();
-    for entry in &catalog.edge_types {
-      // TODO: include label_id in CSREdgeGroupPageInfo for correct per-label filtering.
-      let table = EdgeTable::load(entry.clone(), page_infos.to_vec(), fm)?;
-      tables.insert(entry.label_id, table);
-    }
+    // TODO: include label_id in CSREdgeGroupPageInfo for correct per-label filtering.
+    let tables = catalog
+      .edge_types
+      .iter()
+      .map(|entry| {
+        EdgeTable::load(entry.clone(), page_infos.to_vec(), fm).map(|t| (entry.label_id, t))
+      })
+      .collect::<Result<HashMap<_, _>, _>>()?;
     Ok(Self { tables, node_offsets: HashMap::new(), catalog })
+  }
+
+  fn lookup_offset(&self, node_id: NodeId) -> Result<NodeOffset, StorageError> {
+    self
+      .node_offsets
+      .get(&node_id)
+      .copied()
+      .ok_or(StorageError::NodeNotFound { node_id })
   }
 }
 
-fn align_properties(
-  schema: &crate::catalog::EdgeTypeEntry,
-  values: &[PropertyValue],
-) -> Vec<Option<PropertyValue>> {
-  schema.properties.iter().enumerate().map(|(i, _)| values.get(i).cloned()).collect()
+fn align_properties(schema: &EdgeTypeEntry, values: &[PropertyValue]) -> Vec<Option<PropertyValue>> {
+  schema
+    .properties
+    .iter()
+    .enumerate()
+    .map(|(i, _)| values.get(i).cloned())
+    .collect()
 }
 
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::catalog::PropertyDef;
+  use crate::types::{ColumnId, DataType, TableId};
 
   fn catalog_with_knows() -> Catalog {
-    let mut catalog = Catalog::default();
-    catalog.edge_types.push(crate::catalog::EdgeTypeEntry {
-      table_id: crate::types::TableId(1),
-      label_id: crate::types::LabelId(1),
-      name: "Knows".to_string(),
-      from_label_id: crate::types::LabelId(0),
-      to_label_id: crate::types::LabelId(0),
-      properties: vec![crate::catalog::PropertyDef {
-        name: "weight".to_string(),
-        column_id: crate::types::ColumnId(0),
-        data_type: crate::types::DataType::Float64,
-        nullable: false,
+    Catalog {
+      node_labels: vec![],
+      edge_types:  vec![EdgeTypeEntry {
+        table_id:      TableId(1),
+        label_id:      LabelId(1),
+        name:          "Knows".into(),
+        from_label_id: LabelId(0),
+        to_label_id:   LabelId(0),
+        properties:    vec![PropertyDef {
+          name:      "weight".into(),
+          column_id: ColumnId(0),
+          data_type: DataType::Float64,
+          nullable:  false,
+        }],
       }],
-    });
-    catalog
+    }
   }
 
   fn edge_values() -> Vec<PropertyValue> {
@@ -177,7 +175,7 @@ mod tests {
   fn create_and_read_edge() {
     let mut store = store_with_offsets(&[(10, 100), (20, 200)]);
     let edge_id = EdgeId(1);
-    let type_id = crate::types::LabelId(1);
+    let type_id = LabelId(1);
 
     store
       .apply_command(&Command::CreateEdge {
@@ -197,7 +195,7 @@ mod tests {
   fn delete_edge_via_command() {
     let mut store = store_with_offsets(&[(10, 100), (20, 200)]);
     let edge_id = EdgeId(1);
-    let type_id = crate::types::LabelId(1);
+    let type_id = LabelId(1);
 
     store
       .apply_command(&Command::CreateEdge {
@@ -231,7 +229,7 @@ mod tests {
     assert!(matches!(
       store.apply_command(&Command::CreateEdge {
         edge_id: EdgeId(1),
-        type_id: crate::types::LabelId(999),
+        type_id: LabelId(999),
         from: NodeId(10),
         to: NodeId(20),
         properties: edge_values(),
@@ -246,7 +244,7 @@ mod tests {
     store
       .apply_command(&Command::CreateEdge {
         edge_id: EdgeId(1),
-        type_id: crate::types::LabelId(1),
+        type_id: LabelId(1),
         from: NodeId(10),
         to: NodeId(20),
         properties: edge_values(),
@@ -265,7 +263,7 @@ mod tests {
     store
       .apply_command(&Command::CreateEdge {
         edge_id: EdgeId(1),
-        type_id: crate::types::LabelId(1),
+        type_id: LabelId(1),
         from: NodeId(10),
         to: NodeId(20),
         properties: edge_values(),
@@ -285,7 +283,7 @@ mod tests {
       (204, 2004), (205, 2005), (206, 2006), (207, 2007), (208, 2008),
       (209, 2009),
     ]);
-    let type_id = crate::types::LabelId(1);
+    let type_id = LabelId(1);
 
     for i in 0..10 {
       store
@@ -299,10 +297,8 @@ mod tests {
         .expect("create");
     }
 
-    for i in 0..10 {
-      if i % 2 == 0 {
-        store.apply_command(&Command::DeleteEdge { edge_id: EdgeId(i) }).expect("delete");
-      }
+    for i in (0..10).step_by(2) {
+      store.apply_command(&Command::DeleteEdge { edge_id: EdgeId(i) }).expect("delete");
     }
 
     let remaining: Vec<_> = store.scan_type(type_id).map(|r| r.edge_id).collect();
@@ -317,14 +313,14 @@ mod tests {
     }).is_ok());
     assert!(store.apply_command(&Command::DeleteNode { node_id: NodeId(1) }).is_ok());
     assert!(store.apply_command(&Command::UpsertVector {
-      node_id: NodeId(1), column_id: crate::types::ColumnId(0), vector: vec![],
+      node_id: NodeId(1), column_id: ColumnId(0), vector: vec![],
     }).is_ok());
   }
 
   #[test]
   fn scan_unknown_type_returns_empty_iter() {
     let store = store_with_offsets(&[]);
-    assert_eq!(store.scan_type(crate::types::LabelId(999)).count(), 0);
+    assert_eq!(store.scan_type(LabelId(999)).count(), 0);
   }
 
   #[test]
@@ -332,7 +328,7 @@ mod tests {
     let mut store = EdgeStore::new(Arc::new(catalog_with_knows()));
     let result = store.apply_command(&Command::CreateEdge {
       edge_id: EdgeId(1),
-      type_id: crate::types::LabelId(1),
+      type_id: LabelId(1),
       from: NodeId(10),
       to: NodeId(20),
       properties: edge_values(),
