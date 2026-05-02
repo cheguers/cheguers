@@ -1,37 +1,42 @@
-use crate::types::PageIdx;
+use crate::types::{NodeGroupIdx, NodeOffset, PageIdx};
 
-/// Storage configuration constants.
-/// Inspired by Kuzu's `StorageConfig` / `system_config.h`.
 pub struct StorageConfig;
 
 impl StorageConfig {
-  /// Page size as a power of 2 (default: 4 KiB).
   pub const PAGE_SIZE_LOG2: u32 = 12;
-  /// Fundamental I/O unit: 4096 bytes.
   pub const PAGE_SIZE: u64 = 1 << Self::PAGE_SIZE_LOG2;
 
   pub const NODE_GROUP_SIZE_LOG2: u32 = 16;
-  /// 65 536 rows per node group.
   pub const NODE_GROUP_SIZE: u64 = 1 << Self::NODE_GROUP_SIZE_LOG2;
 
-  /// Maximum number of properties per node/edge label in v0.
-  /// Bounded property set, typed at schema definition time.
+  pub const CHUNKED_NODE_GROUP_CAPACITY: u64 =
+    if 2048 < Self::NODE_GROUP_SIZE { 2048 } else { Self::NODE_GROUP_SIZE };
+
   pub const MAX_PROPERTIES_PER_LABEL: usize = 64;
 
-  /// Page index reserved for the database header.
   pub const DB_HEADER_PAGE_IDX: PageIdx = PageIdx(0);
 
-  /// Log segment size (number of pages per segment in the commit log).
   pub const LOG_SEGMENT_SIZE_LOG2: u32 = 8;
-  /// 256 pages per log segment.
   pub const LOG_SEGMENT_SIZE: u64 = 1 << Self::LOG_SEGMENT_SIZE_LOG2;
 
-  /// Data file suffix.
   pub const FILE_SUFFIX: &str = "cheguers";
 
-  /// Storage format version.
   pub const STORAGE_VERSION: u32 = 1;
 }
 
-/// Magic bytes written at the start of every data file.
+const _: () = assert!(
+  StorageConfig::NODE_GROUP_SIZE.is_multiple_of(StorageConfig::CHUNKED_NODE_GROUP_CAPACITY),
+  "NODE_GROUP_SIZE must be a whole multiple of CHUNKED_NODE_GROUP_CAPACITY",
+);
+
+#[inline]
+pub fn get_start_offset_of_node_group(node_group_idx: NodeGroupIdx) -> NodeOffset {
+  node_group_idx.0 << StorageConfig::NODE_GROUP_SIZE_LOG2
+}
+
+#[inline]
+pub fn get_node_group_idx(node_offset: NodeOffset) -> NodeGroupIdx {
+  NodeGroupIdx(node_offset >> StorageConfig::NODE_GROUP_SIZE_LOG2)
+}
+
 pub const MAGIC_BYTES: &[u8; 16] = b"CHEGUERSDB\0\0\0\0\0\0";
