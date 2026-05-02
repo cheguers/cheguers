@@ -38,7 +38,7 @@ impl StorageManager {
     let mut header = DatabaseHeader::new(generate_db_id());
     fm.write_page(PageIdx(0), &header.serialize())?;
 
-    let cat_pages = serialize_catalog_block(&catalog, &[], &[]);
+    let cat_pages = serialize_catalog_block(&catalog, &[], &[])?;
     let cat_start = fm.allocate_pages(cat_pages.len() as u64)?;
     fm.write_page_range(cat_start, &cat_pages)?;
 
@@ -108,7 +108,7 @@ impl StorageManager {
     let node_pis = self.node_store.all_page_infos();
     let edge_pis = self.edge_store.all_page_infos();
 
-    let cat_pages = serialize_catalog_block(&self.catalog, &node_pis, &edge_pis);
+    let cat_pages = serialize_catalog_block(&self.catalog, &node_pis, &edge_pis)?;
     let cat_start = self.file_manager.allocate_pages(cat_pages.len() as u64)?;
     self.file_manager.write_page_range(cat_start, &cat_pages)?;
 
@@ -137,12 +137,12 @@ fn serialize_catalog_block(
   catalog: &Catalog,
   node_pis: &[NodeGroupPageInfo],
   edge_pis: &[CSREdgeGroupPageInfo],
-) -> Vec<Page> {
+) -> Result<Vec<Page>, StorageError> {
   let cat_len = catalog.serialized_len();
   let mut buf = vec![0u8; cat_len];
-  let _ = catalog.serialize(&mut buf);
+  catalog.serialize(&mut buf)?;
   write_table_metadata(&mut buf, node_pis, edge_pis);
-  split_into_pages(&buf)
+  Ok(split_into_pages(&buf))
 }
 
 fn write_table_metadata(
