@@ -66,10 +66,9 @@ impl EdgeTable {
     direction: Direction,
     schema: &EdgeTypeEntry,
   ) -> &'a mut CSREdgeGroup {
-    let next_idx = NodeGroupIdx(ranges.values().map(Vec::len).sum::<usize>() as u64);
     let groups = ranges.entry(range_idx).or_default();
     if groups.last().is_none_or(CSREdgeGroup::is_full) {
-      groups.push(CSREdgeGroup::new(next_idx, direction, schema));
+      groups.push(CSREdgeGroup::new(range_idx, direction, schema));
     }
     groups.last_mut().expect("just pushed if missing")
   }
@@ -88,11 +87,21 @@ impl EdgeTable {
     let fwd_range = Self::range_idx(from_offset);
     let bwd_range = Self::range_idx(to_offset);
 
-    let fwd_group = Self::find_or_create_group(&mut self.fwd_ranges, fwd_range, Direction::Forward, &self.schema);
+    let fwd_group = Self::find_or_create_group(
+      &mut self.fwd_ranges,
+      fwd_range,
+      Direction::Forward,
+      &self.schema,
+    );
     let fwd_idx = fwd_group.group_idx();
     fwd_group.insert_edge(from_offset, edge_id, from, to, properties)?;
 
-    let bwd_group = Self::find_or_create_group(&mut self.bwd_ranges, bwd_range, Direction::Backward, &self.schema);
+    let bwd_group = Self::find_or_create_group(
+      &mut self.bwd_ranges,
+      bwd_range,
+      Direction::Backward,
+      &self.schema,
+    );
     let bwd_idx = bwd_group.group_idx();
     bwd_group.insert_edge(to_offset, edge_id, from, to, properties)?;
 
@@ -176,9 +185,14 @@ impl EdgeTable {
       .sum()
   }
 
-  pub fn iter(&self) -> CSREdgeScanIter<'_> {
-    let groups = self.fwd_ranges.values().flat_map(|v| v.iter()).collect();
-    CSREdgeScanIter { groups, group_idx: 0, row_idx: 0 }
+  pub fn iter(&self) -> impl Iterator<Item = CSREdgeRecord> + '_ {
+    self
+      .fwd_ranges
+      .values()
+      .flat_map(|groups| groups.iter())
+      .flat_map(|group| {
+        (0..group.num_rows()).filter_map(move |row| group.get_row(row).ok().flatten())
+      })
   }
 
   pub fn page_infos(&self) -> &[CSREdgeGroupPageInfo] {
@@ -251,32 +265,6 @@ impl EdgeTable {
     } else {
       self.page_infos.push(CSREdgeGroupPageInfo { group_idx, direction, page_range: range });
     }
-  }
-}
-
-pub struct CSREdgeScanIter<'a> {
-  groups:    Vec<&'a CSREdgeGroup>,
-  group_idx: usize,
-  row_idx:   u64,
-}
-
-impl<'a> Iterator for CSREdgeScanIter<'a> {
-  type Item = CSREdgeRecord;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    while self.group_idx < self.groups.len() {
-      let group = self.groups[self.group_idx];
-      while self.row_idx < group.num_rows() {
-        let row = self.row_idx;
-        self.row_idx += 1;
-        if let Ok(Some(record)) = group.get_row(row) {
-          return Some(record);
-        }
-      }
-      self.group_idx += 1;
-      self.row_idx = 0;
-    }
-    None
   }
 }
 
