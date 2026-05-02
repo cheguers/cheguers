@@ -52,12 +52,14 @@ impl EdgeStore {
           .ok_or(StorageError::LabelNotFound { label_id: *type_id })?;
         table.insert_edge(*edge_id, *from, *to, from_offset, to_offset, &aligned)
       }
-      Command::DeleteEdge { edge_id } => self
-        .tables
-        .values_mut()
-        .find(|t| matches!(t.get_edge(*edge_id), Ok(Some(_))))
-        .map(|t| t.delete_edge(*edge_id))
-        .unwrap_or(Err(StorageError::EdgeNotFound { edge_id: *edge_id })),
+      Command::DeleteEdge { edge_id } => {
+        for table in self.tables.values_mut() {
+          if table.get_edge(*edge_id)?.is_some() {
+            return table.delete_edge(*edge_id);
+          }
+        }
+        Err(StorageError::EdgeNotFound { edge_id: *edge_id })
+      }
       Command::CreateNode { .. } | Command::UpsertVector { .. } | Command::DeleteNode { .. } => Ok(()),
     }
   }
@@ -87,10 +89,7 @@ impl EdgeStore {
   }
 
   pub fn flush_all(&mut self, fm: &mut FileManager) -> Result<(), StorageError> {
-    for table in self.tables.values_mut() {
-      table.flush(fm)?;
-    }
-    Ok(())
+    self.tables.values_mut().try_for_each(|t| t.flush(fm))
   }
 
   #[must_use]
