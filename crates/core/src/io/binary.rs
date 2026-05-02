@@ -1,4 +1,3 @@
-//! Manual little-endian byte encoding helpers.
 //! Zero external dependencies — all page-format I/O goes through these.
 
 macro_rules! le_codec {

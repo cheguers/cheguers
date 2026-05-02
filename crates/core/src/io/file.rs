@@ -97,10 +97,10 @@ impl FileManager {
   }
 
   pub fn write_page_range(&mut self, start: PageIdx, pages: &[Page]) -> Result<(), StorageError> {
-    for (i, page) in pages.iter().enumerate() {
-      self.write_page(PageIdx(start.0 + i as u64), page)?;
-    }
-    Ok(())
+    pages
+      .iter()
+      .enumerate()
+      .try_for_each(|(i, page)| self.write_page(PageIdx(start.0 + i as u64), page))
   }
 
   pub fn sync(&mut self) -> Result<(), StorageError> {
