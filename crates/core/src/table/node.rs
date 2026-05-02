@@ -3,58 +3,76 @@ use crate::config::StorageConfig;
 use crate::error::StorageError;
 use crate::io::binary;
 use crate::io::page::Page;
-use crate::table::column::ColumnChunk;
-use crate::types::{NodeGroupIdx, NodeId, PropertyValue, RowIdx};
+use crate::table::chunked_node_group::ChunkedNodeGroup;
+use crate::types::{ColumnId, DataType, NodeGroupIdx, NodeId, PropertyValue, RowIdx};
 
-/// Columns are stored columnar — one ColumnChunk per property in the schema.
-/// `node_ids` is a dense array enabling ID→row lookup (linear scan, v0).
-/// `delete_mask` supports soft-deletes without compaction.
 pub struct NodeGroup {
-  group_idx:   NodeGroupIdx,
-  num_rows:    u64,
-  columns:     Vec<ColumnChunk>,
-  node_ids:    Vec<NodeId>,
-  delete_mask: Vec<bool>,
+  group_idx:      NodeGroupIdx,
+  chunked_groups: Vec<ChunkedNodeGroup>,
+  column_schema:  Vec<(ColumnId, DataType)>,
 }
 
 impl NodeGroup {
   pub fn new(group_idx: NodeGroupIdx, schema: &NodeLabelEntry) -> Self {
-    let columns = schema
+    let column_schema: Vec<(ColumnId, DataType)> = schema
       .properties
       .iter()
-      .map(|p| ColumnChunk::new(p.column_id, p.data_type.clone()))
+      .map(|p| (p.column_id, p.data_type.clone()))
       .collect();
-    Self {
-      group_idx,
-      num_rows: 0,
-      columns,
-      node_ids: Vec::new(),
-      delete_mask: Vec::new(),
-    }
+    Self { group_idx, chunked_groups: Vec::new(), column_schema }
   }
 
   #[must_use]
-  pub fn group_idx(&self) -> NodeGroupIdx {
-    self.group_idx
-  }
+  pub fn group_idx(&self) -> NodeGroupIdx { self.group_idx }
 
   #[must_use]
   pub fn num_rows(&self) -> u64 {
-    self.num_rows
+    self
+      .chunked_groups
+      .last()
+      .map_or(0, |c| c.start_row_idx() + c.num_rows())
   }
 
   #[must_use]
   pub fn num_live_rows(&self) -> u64 {
-    self.delete_mask.iter().filter(|&&d| !d).count() as u64
+    self.chunked_groups.iter().map(ChunkedNodeGroup::num_live_rows).sum()
   }
 
   #[must_use]
   pub fn is_full(&self) -> bool {
-    self.columns.first().is_some_and(ColumnChunk::is_full)
-      || self.num_rows >= StorageConfig::NODE_GROUP_SIZE
+    const MAX_CHUNKS: usize =
+      (StorageConfig::NODE_GROUP_SIZE / StorageConfig::CHUNKED_NODE_GROUP_CAPACITY) as usize;
+    self.chunked_groups.len() == MAX_CHUNKS
+      && self.chunked_groups.last().is_some_and(ChunkedNodeGroup::is_full)
   }
 
-  /// `values` must be aligned to the schema's property list (positional).
+  fn find_chunk(&self, row: RowIdx) -> Option<(usize, RowIdx)> {
+    let idx = (row / StorageConfig::CHUNKED_NODE_GROUP_CAPACITY) as usize;
+    let chunk = self.chunked_groups.get(idx)?;
+    let local = row - chunk.start_row_idx();
+    (local < chunk.num_rows()).then_some((idx, local))
+  }
+
+  fn ensure_active_chunk(&mut self) -> &mut ChunkedNodeGroup {
+    let need_new = self
+      .chunked_groups
+      .last()
+      .is_none_or(ChunkedNodeGroup::is_full);
+    if need_new {
+      let start_row = self
+        .chunked_groups
+        .last()
+        .map_or(0, ChunkedNodeGroup::end_row_idx);
+      self
+        .chunked_groups
+        .push(ChunkedNodeGroup::new(start_row, &self.column_schema));
+    }
+    self
+      .chunked_groups
+      .last_mut()
+      .expect("ensure_active_chunk just guaranteed a chunk")
+  }
+
   pub fn insert_row(
     &mut self,
     node_id: NodeId,
@@ -63,91 +81,71 @@ impl NodeGroup {
     if self.is_full() {
       return Err(StorageError::NodeGroupFull);
     }
-    for (i, chunk) in self.columns.iter_mut().enumerate() {
-      chunk.append_value(values.get(i).and_then(Option::as_ref))?;
-    }
-    self.node_ids.push(node_id);
-    self.delete_mask.push(false);
-    let row = self.num_rows;
-    self.num_rows += 1;
-    Ok(row)
+    self.ensure_active_chunk().insert_row(node_id, values)
   }
 
-  /// Returns `Ok(None)` if the row is soft-deleted.
   pub fn get_row(&self, row: RowIdx) -> Result<Option<Vec<Option<PropertyValue>>>, StorageError> {
-    if row >= self.num_rows {
-      return Err(StorageError::RowOutOfBounds { row, len: self.num_rows });
-    }
-    if self.delete_mask[row as usize] {
-      return Ok(None);
-    }
-    self
-      .columns
-      .iter()
-      .map(|c| c.get(row))
-      .collect::<Result<Vec<_>, _>>()
-      .map(Some)
+    let (chunk_idx, local) = self
+      .find_chunk(row)
+      .ok_or_else(|| StorageError::RowOutOfBounds { row, len: self.num_rows() })?;
+    self.chunked_groups[chunk_idx].get_row_local(local)
   }
 
-  /// Returns the RowIdx if found and not deleted.
   #[must_use]
   pub fn find_node(&self, node_id: NodeId) -> Option<RowIdx> {
-    self
-      .node_ids
-      .iter()
-      .zip(&self.delete_mask)
-      .position(|(&id, &deleted)| id == node_id && !deleted)
-      .map(|i| i as RowIdx)
+    self.chunked_groups.iter().find_map(|chunk| {
+      chunk
+        .find_node_local(node_id)
+        .map(|local| chunk.start_row_idx() + local)
+    })
   }
 
   pub fn node_id_at(&self, row: RowIdx) -> Result<NodeId, StorageError> {
-    self
-      .node_ids
-      .get(row as usize)
-      .copied()
-      .ok_or(StorageError::RowOutOfBounds { row, len: self.num_rows })
+    let (chunk_idx, local) = self
+      .find_chunk(row)
+      .ok_or_else(|| StorageError::RowOutOfBounds { row, len: self.num_rows() })?;
+    self.chunked_groups[chunk_idx].node_id_at_local(local)
   }
 
   pub fn delete_row(&mut self, row: RowIdx) -> Result<(), StorageError> {
-    let slot = self
-      .delete_mask
-      .get_mut(row as usize)
-      .ok_or(StorageError::RowOutOfBounds { row, len: self.num_rows })?;
-    *slot = true;
-    Ok(())
+    let (chunk_idx, local) = self
+      .find_chunk(row)
+      .ok_or_else(|| StorageError::RowOutOfBounds { row, len: self.num_rows() })?;
+    self.chunked_groups[chunk_idx].delete_row_local(local)
   }
 
   fn compute_serialized_size(&self) -> usize {
-    let header = 8 + 8 + 4 + 4 + self.columns.len() * 4;
-    let node_ids = self.num_rows as usize * 8;
-    let delete_mask = (self.num_rows as usize).div_ceil(8);
-    let cols: usize = self.columns.iter().map(ColumnChunk::serialized_len).sum();
-    header + node_ids + delete_mask + cols
+    let header = 8 + 8 + 4 + 4 + self.chunked_groups.len() * 4;
+    let chunks: usize = self.chunked_groups.iter().map(ChunkedNodeGroup::serialized_len).sum();
+    header + chunks
   }
 
   pub fn serialize_to_pages(&self) -> Result<Vec<Page>, StorageError> {
-    let mut buf = vec![0u8; self.compute_serialized_size()];
+    let total = self.compute_serialized_size();
+    let mut buf = vec![0u8; total];
     let mut pos = 0;
 
     binary::write_u64(&mut buf, &mut pos, self.group_idx.0);
-    binary::write_u64(&mut buf, &mut pos, self.num_rows);
+    binary::write_u64(&mut buf, &mut pos, self.num_rows());
     binary::write_u32(&mut buf, &mut pos, self.num_live_rows() as u32);
-    binary::write_u32(&mut buf, &mut pos, self.columns.len() as u32);
-    for col in &self.columns {
-      binary::write_u32(&mut buf, &mut pos, col.serialized_len() as u32);
-    }
-    for &id in &self.node_ids {
-      binary::write_u64(&mut buf, &mut pos, id.0);
-    }
-    binary::write_bytes(&mut buf, &mut pos, &binary::pack_bitmask(&self.delete_mask));
+    binary::write_u32(&mut buf, &mut pos, self.chunked_groups.len() as u32);
 
-    for col in &self.columns {
-      let len = col.serialized_len();
-      let written = col.serialize(&mut buf[pos..pos + len])?;
-      pos += written;
+    let chunk_offsets =
+      self.chunked_groups.iter().scan(0u32, |acc, chunk| {
+        let off = *acc;
+        *acc += chunk.serialized_len() as u32;
+        Some(off)
+      });
+    for off in chunk_offsets {
+      binary::write_u32(&mut buf, &mut pos, off);
     }
 
-    Ok(split_into_pages(&buf))
+    pos = self
+      .chunked_groups
+      .iter()
+      .try_fold(pos, |p, chunk| chunk.serialize(&mut buf[p..]).map(|n| p + n))?;
+
+    Ok(split_into_pages(&buf[..pos]))
   }
 
   pub fn deserialize_from_pages(
@@ -155,37 +153,45 @@ impl NodeGroup {
     group_idx: NodeGroupIdx,
     pages: &[Page],
   ) -> Result<Self, StorageError> {
+    let column_schema: Vec<(ColumnId, DataType)> = schema
+      .properties
+      .iter()
+      .map(|p| (p.column_id, p.data_type.clone()))
+      .collect();
     let buf: Vec<u8> = pages.iter().flat_map(Page::to_vec).collect();
     let mut pos = 0;
 
     let _disk_group_idx = binary::read_u64(&buf, &mut pos);
-    let num_rows = binary::read_u64(&buf, &mut pos);
-    let _num_live = binary::read_u32(&buf, &mut pos);
-    let num_columns = binary::read_u32(&buf, &mut pos) as usize;
+    let _total_num_rows = binary::read_u64(&buf, &mut pos);
+    let _total_num_live = binary::read_u32(&buf, &mut pos);
+    let num_chunks = binary::read_u32(&buf, &mut pos) as usize;
 
-    let column_lens: Vec<usize> = (0..num_columns)
+    let offsets: Vec<usize> = (0..num_chunks)
       .map(|_| binary::read_u32(&buf, &mut pos) as usize)
       .collect();
-    let node_ids: Vec<NodeId> = (0..num_rows)
-      .map(|_| NodeId(binary::read_u64(&buf, &mut pos)))
-      .collect();
+    let data_start = pos;
 
-    let mask_bytes = binary::read_bytes(&buf, &mut pos, (num_rows as usize).div_ceil(8));
-    let delete_mask = binary::unpack_bitmask(mask_bytes, num_rows as usize);
-
-    let columns = schema
-      .properties
+    let starts = offsets.iter().map(|&o| data_start + o);
+    let ends = offsets
       .iter()
-      .enumerate()
-      .map(|(i, prop)| {
-        let len = column_lens.get(i).copied().unwrap_or(0);
-        let chunk = ColumnChunk::deserialize(prop.column_id, prop.data_type.clone(), &buf[pos..pos + len])?;
-        pos += len;
-        Ok(chunk)
+      .skip(1)
+      .map(|&o| data_start + o)
+      .chain(std::iter::once(buf.len()));
+
+    let chunked_groups = starts
+      .zip(ends)
+      .map(|(s, e)| {
+        if s > e || e > buf.len() {
+          return Err(StorageError::SerDe(format!(
+            "chunk offsets out of range: start={s} end={e} buf_len={}",
+            buf.len()
+          )));
+        }
+        ChunkedNodeGroup::deserialize(&column_schema, &buf[s..e])
       })
       .collect::<Result<Vec<_>, StorageError>>()?;
 
-    Ok(Self { group_idx, num_rows, columns, node_ids, delete_mask })
+    Ok(Self { group_idx, chunked_groups, column_schema })
   }
 }
 
@@ -306,6 +312,64 @@ mod tests {
   }
 
   #[test]
+  fn overflow_into_second_chunk() {
+    let schema = NodeLabelEntry {
+      table_id:     TableId(0),
+      label_id:     LabelId(0),
+      name:         "T".into(),
+      pk_column_id: ColumnId(0),
+      properties:   vec![PropertyDef {
+        name:      "flag".into(),
+        column_id: ColumnId(0),
+        data_type: DataType::Bool,
+        nullable:  false,
+      }],
+    };
+    let mut group = NodeGroup::new(NodeGroupIdx(0), &schema);
+    let cap = StorageConfig::CHUNKED_NODE_GROUP_CAPACITY;
+    for i in 0..cap + 1 {
+      group.insert_row(NodeId(i), &[Some(PropertyValue::Bool(true))]).unwrap();
+    }
+    assert_eq!(group.num_rows(), cap + 1);
+    assert_eq!(group.chunked_groups.len(), 2);
+    assert!(group.get_row(0).unwrap().is_some());
+    assert!(group.get_row(cap - 1).unwrap().is_some());
+    assert!(group.get_row(cap).unwrap().is_some());
+  }
+
+  #[test]
+  fn find_node_across_chunks() {
+    let schema = person_schema();
+    let mut group = NodeGroup::new(NodeGroupIdx(0), &schema);
+    let cap = StorageConfig::CHUNKED_NODE_GROUP_CAPACITY;
+    for i in 0..cap {
+      group.insert_row(NodeId(i), &person_values("X", i as i64)).unwrap();
+    }
+    group.insert_row(NodeId(cap), &person_values("Target", 42)).unwrap();
+
+    assert_eq!(group.find_node(NodeId(0)), Some(0));
+    assert_eq!(group.find_node(NodeId(cap - 1)), Some(cap - 1));
+    assert_eq!(group.find_node(NodeId(cap)), Some(cap));
+  }
+
+  #[test]
+  fn delete_across_chunks() {
+    let schema = person_schema();
+    let mut group = NodeGroup::new(NodeGroupIdx(0), &schema);
+    let cap = StorageConfig::CHUNKED_NODE_GROUP_CAPACITY;
+    for i in 0..cap + 2 {
+      group.insert_row(NodeId(i), &person_values("X", i as i64)).unwrap();
+    }
+    group.delete_row(cap - 1).unwrap();
+    group.delete_row(cap).unwrap();
+
+    assert!(group.get_row(cap - 1).unwrap().is_none());
+    assert!(group.get_row(cap).unwrap().is_none());
+    assert!(group.get_row(cap - 2).unwrap().is_some());
+    assert!(group.get_row(cap + 1).unwrap().is_some());
+  }
+
+  #[test]
   fn serde_roundtrip() {
     let schema = person_schema();
     let mut group = NodeGroup::new(NodeGroupIdx(0), &schema);
@@ -352,5 +416,42 @@ mod tests {
     assert!(!pages.is_empty());
     let restored = NodeGroup::deserialize_from_pages(&schema, NodeGroupIdx(5), &pages).unwrap();
     assert_eq!(restored.num_rows(), 0);
+  }
+
+  #[test]
+  fn serde_multi_chunk_roundtrip() {
+    let schema = NodeLabelEntry {
+      table_id:     TableId(0),
+      label_id:     LabelId(0),
+      name:         "T".into(),
+      pk_column_id: ColumnId(0),
+      properties:   vec![PropertyDef {
+        name:      "val".into(),
+        column_id: ColumnId(0),
+        data_type: DataType::Int64,
+        nullable:  false,
+      }],
+    };
+    let mut group = NodeGroup::new(NodeGroupIdx(7), &schema);
+    let cap = StorageConfig::CHUNKED_NODE_GROUP_CAPACITY;
+    for i in 0..cap + 5 {
+      group.insert_row(NodeId(i), &[Some(PropertyValue::Int64(i as i64))]).unwrap();
+    }
+    group.delete_row(0).unwrap();
+    group.delete_row(cap).unwrap();
+    group.delete_row(cap + 1).unwrap();
+
+    let pages = group.serialize_to_pages().unwrap();
+    let restored = NodeGroup::deserialize_from_pages(&schema, NodeGroupIdx(7), &pages).unwrap();
+
+    assert_eq!(restored.num_rows(), cap + 5);
+    assert_eq!(restored.num_live_rows(), cap + 2);
+    assert!(restored.get_row(0).unwrap().is_none());
+    assert!(restored.get_row(1).unwrap().is_some());
+    assert_eq!(restored.get_row(1).unwrap().unwrap()[0], Some(PropertyValue::Int64(1)));
+    assert!(restored.get_row(cap).unwrap().is_none());
+    assert!(restored.get_row(cap + 1).unwrap().is_none());
+    assert!(restored.get_row(cap + 2).unwrap().is_some());
+    assert_eq!(restored.get_row(cap + 2).unwrap().unwrap()[0], Some(PropertyValue::Int64((cap + 2) as i64)));
   }
 }
