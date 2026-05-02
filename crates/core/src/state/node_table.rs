@@ -68,22 +68,22 @@ impl NodeTable {
   }
 
   pub fn get_node(&self, node_id: NodeId) -> Result<Option<Vec<Option<PropertyValue>>>, StorageError> {
-    self
-      .groups
-      .iter()
-      .find_map(|g| g.find_node(node_id).map(|row| g.get_row(row)))
-      .unwrap_or(Ok(None))
+    let Some(&offset) = self.node_id_to_offset.get(&node_id) else {
+      return Ok(None);
+    };
+    let (group_idx, row) = split_offset(offset);
+    self.groups[group_idx].get_row(row)
   }
 
   pub fn delete_node(&mut self, node_id: NodeId) -> Result<(), StorageError> {
-    for group in &mut self.groups {
-      if let Some(row) = group.find_node(node_id) {
-        self.node_id_to_offset.remove(&node_id);
-        self.dirty_groups.insert(group.group_idx());
-        return group.delete_row(row);
-      }
-    }
-    Err(StorageError::NodeNotFound { node_id })
+    let offset = self
+      .node_id_to_offset
+      .remove(&node_id)
+      .ok_or(StorageError::NodeNotFound { node_id })?;
+    let (group_idx, row) = split_offset(offset);
+    let group = &mut self.groups[group_idx];
+    self.dirty_groups.insert(group.group_idx());
+    group.delete_row(row)
   }
 
   #[must_use]
@@ -101,9 +101,16 @@ impl NodeTable {
     self.groups.iter().map(NodeGroup::num_live_rows).sum()
   }
 
-  #[must_use]
-  pub fn iter(&self) -> NodeScanIter<'_> {
-    NodeScanIter { table: self, group_idx: 0, row_idx: 0 }
+  pub fn iter(&self) -> impl Iterator<Item = NodeRecord> + '_ {
+    self.groups.iter().flat_map(|group| {
+      (0..group.num_rows()).filter_map(move |row| {
+        let properties = group.get_row(row).ok().flatten()?;
+        let node_id = group
+          .node_id_at(row)
+          .expect("node_id_at must succeed for a row whose get_row returned Some");
+        Some(NodeRecord { node_id, properties })
+      })
+    })
   }
 
   #[must_use]
@@ -172,31 +179,12 @@ pub struct NodeRecord {
   pub properties: Vec<Option<PropertyValue>>,
 }
 
-pub struct NodeScanIter<'a> {
-  table:     &'a NodeTable,
-  group_idx: usize,
-  row_idx:   u64,
-}
-
-impl<'a> Iterator for NodeScanIter<'a> {
-  type Item = NodeRecord;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    loop {
-      let group = self.table.groups.get(self.group_idx)?;
-      if self.row_idx >= group.num_rows() {
-        self.group_idx += 1;
-        self.row_idx = 0;
-        continue;
-      }
-      let row = self.row_idx;
-      self.row_idx += 1;
-      if let Ok(Some(properties)) = group.get_row(row) {
-        let node_id = group.node_id_at(row).expect("row exists but node_id_at failed");
-        return Some(NodeRecord { node_id, properties });
-      }
-    }
-  }
+#[inline]
+fn split_offset(offset: NodeOffset) -> (usize, RowIdx) {
+  (
+    (offset / StorageConfig::NODE_GROUP_SIZE) as usize,
+    offset % StorageConfig::NODE_GROUP_SIZE,
+  )
 }
 
 #[cfg(test)]
