@@ -276,9 +276,18 @@ impl CSREdgeGroup {
       ))
     })?;
 
-    for (i, chunk) in self.columns.iter_mut().enumerate() {
-      chunk.append_value(values.get(i).and_then(Option::as_ref))?;
-    }
+    self
+      .columns
+      .iter()
+      .zip(values.iter().map(Option::as_ref).chain(std::iter::repeat(None)))
+      .try_for_each(|(col, val)| val.map_or(Ok(()), |v| col.type_check(v)))?;
+
+    self
+      .columns
+      .iter_mut()
+      .zip(values.iter().map(Option::as_ref).chain(std::iter::repeat(None)))
+      .try_for_each(|(col, val)| col.append_value(val))?;
+
     self.edge_ids.push(edge_id);
     self.from_ids.push(from);
     self.to_ids.push(to);
@@ -640,6 +649,23 @@ mod tests {
     assert_ne!(group.dirty_regions(), 0, "region 0 should be dirty");
     group.clear_dirty_regions();
     assert_eq!(group.dirty_regions(), 0);
+  }
+
+  #[test]
+  fn type_mismatch_does_not_corrupt_group() {
+    let base = in_range(0);
+    let mut group = CSREdgeGroup::new(NodeGroupIdx(0), Direction::Forward, &knows_schema());
+    group.insert_edge(base + 100, EdgeId(1), NodeId(10), NodeId(20), &edge_values(0.5)).unwrap();
+
+    let bad = vec![Some(PropertyValue::Bool(true))];
+    let result = group.insert_edge(base + 100, EdgeId(2), NodeId(10), NodeId(20), &bad);
+    assert!(matches!(result, Err(StorageError::ColumnTypeMismatch { .. })));
+
+    assert_eq!(group.num_rows(), 1);
+    assert_eq!(group.num_live_rows(), 1);
+    let row = group.get_row(0).unwrap().unwrap();
+    assert_eq!(row.edge_id, EdgeId(1));
+    assert_eq!(row.properties[0], Some(PropertyValue::Float64(0.5)));
   }
 
   #[test]
