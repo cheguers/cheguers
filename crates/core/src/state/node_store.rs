@@ -85,10 +85,7 @@ impl NodeStore {
   }
 
   pub fn flush_all(&mut self, fm: &mut FileManager) -> Result<(), StorageError> {
-    for table in self.tables.values_mut() {
-      table.flush(fm)?;
-    }
-    Ok(())
+    self.tables.values_mut().try_for_each(|t| t.flush(fm))
   }
 
   #[must_use]
