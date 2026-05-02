@@ -235,7 +235,7 @@ impl ColumnChunk {
     (0..=n).map(|_| binary::read_u32(buf, pos)).collect()
   }
 
-  fn type_check(&self, value: &PropertyValue) -> Result<(), StorageError> {
+  pub(crate) fn type_check(&self, value: &PropertyValue) -> Result<(), StorageError> {
     let compatible = matches!(
       (&self.data_type, value.data_type()),
       (DataType::Vector { .. }, DataType::Bytes)
