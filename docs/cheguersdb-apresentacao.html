@@ -675,11 +675,69 @@ h2 .num {
     </div>
 </section>
 
-<!-- 5. CONTRIBUIÇÕES -->
+<!-- 5. POSICIONAMENTO: CONTEXTO -->
 <section class="slide">
-    <div class="slide-meta"><span class="kicker">Contribuições</span><span>05</span></div>
+    <div class="slide-meta"><span class="kicker">Posicionamento Científico</span><span>05</span></div>
     <div class="slide-content">
-        <h2 class="reveal"><span class="num">3</span>O que o CheguersDB entrega</h2>
+        <h2 class="reveal"><span class="num">3</span>Contexto</h2>
+        <p class="summary reveal">O CheguersDB situa-se na interseção entre quatro áreas ativas de pesquisa e engenharia.</p>
+        <div class="pills reveal">
+            <span>GraphRAG</span>
+            <span>HybridRAG</span>
+            <span>Bancos de Grafos</span>
+            <span>Bancos Vetoriais</span>
+        </div>
+    </div>
+</section>
+
+<!-- 6. TRABALHOS RELACIONADOS -->
+<section class="slide">
+    <div class="slide-meta"><span class="kicker">Posicionamento Científico</span><span>06</span></div>
+    <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>Trabalhos Relacionados</h2>
+        <p class="summary reveal">Referências diretas embasam a abordagem; as indiretas representam a prática atual de mercado.</p>
+        <div class="refs">
+            <div class="ref-col reveal">
+                <h3>Científico</h3>
+                <ul>
+                    <li>Peng et al. (2024) — GraphRAG (survey)</li>
+                    <li>HybridRAG (2025)</li>
+                </ul>
+            </div>
+            <div class="ref-col reveal">
+                <h3>Software</h3>
+                <ul>
+                    <li>Neo4j</li>
+                    <li>Kuzu</li>
+                    <li>TigerBeetle</li>
+                    <li>RushDB</li>
+                    <li>Turso</li>
+                    <li>HelixDB</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- 7. LACUNA E PERGUNTA DE PESQUISA -->
+<section class="slide">
+    <div class="slide-meta"><span class="kicker">Posicionamento Científico</span><span>07</span></div>
+    <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>Lacuna e Proposta de Pesquisa</h2>
+        <p class="summary reveal">Stacks compostas (vetorial + grafo + orquestração externa) dificultam a avaliação experimental — lacuna que esta contribuição original endereça.</p>
+        <ul class="bullets check reveal">
+            <li>Benchmark reproduzível para <strong>workloads GraphRAG</strong>.</li>
+            <li>Análise do <strong>custo da recuperação híbrida</strong> em ambiente controlado.</li>
+        </ul>
+        <blockquote class="quote reveal">Investigar se uma arquitetura unificada pode substituir stacks compostas para aplicações HybridRAG, reduzindo complexidade e aumentando a reprodutibilidade experimental.</blockquote>
+    </div>
+</section>
+
+<!-- 8. CONTRIBUIÇÕES (PROPOSTA) -->
+<section class="slide">
+    <div class="slide-meta"><span class="kicker">Proposta · Contribuições</span><span>08</span></div>
+    <div class="slide-content">
+        <h2 class="reveal"><span class="num">4</span>O que o CheguersDB entrega</h2>
         <p class="summary reveal">Trata nós, arestas e embeddings como dados de primeira classe, co-localizados sob um único caminho de execução determinístico.</p>
         <div class="grid">
             <div class="card reveal">
@@ -698,11 +756,11 @@ h2 .num {
     </div>
 </section>
 
-<!-- 6. METODOLOGIA -->
+<!-- 9. METODOLOGIA -->
 <section class="slide">
-    <div class="slide-meta"><span class="kicker">Metodologia e Execução</span><span>06</span></div>
+    <div class="slide-meta"><span class="kicker">Metodologia e Execução</span><span>09</span></div>
     <div class="slide-content">
-        <h2 class="reveal"><span class="num">4</span>Metodologia</h2>
+        <h2 class="reveal"><span class="num">5</span>Metodologia</h2>
         <p class="summary reveal">Pesquisa aplicada orientada à construção e à validação experimental de uma hipótese arquitetural.</p>
         <ul class="bullets reveal">
             <li>Revisão bibliográfica sobre <strong>GraphRAG, HybridRAG</strong>, bancos de grafos e bancos vetoriais.</li>
@@ -712,9 +770,9 @@ h2 .num {
     </div>
 </section>
 
-<!-- 7. PIPELINE TÉCNICO -->
+<!-- 10. PIPELINE TÉCNICO -->
 <section class="slide">
-    <div class="slide-meta"><span class="kicker">Metodologia e Execução</span><span>07</span></div>
+    <div class="slide-meta"><span class="kicker">Metodologia e Execução</span><span>10</span></div>
     <div class="slide-content">
         <h2 class="reveal"><span class="num">·</span>Pipeline Técnico</h2>
         <p class="summary reveal">Caminho único de execução, da ingestão ao resultado, sobre o armazenamento unificado grafo–vetor.</p>
@@ -734,9 +792,9 @@ h2 .num {
     </div>
 </section>
 
-<!-- 8. REPRODUTIBILIDADE -->
+<!-- 11. REPRODUTIBILIDADE -->
 <section class="slide">
-    <div class="slide-meta"><span class="kicker">Metodologia e Execução</span><span>08</span></div>
+    <div class="slide-meta"><span class="kicker">Metodologia e Execução</span><span>11</span></div>
     <div class="slide-content">
         <h2 class="reveal"><span class="num">·</span>Reprodutibilidade</h2>
         <p class="summary reveal">Todo o experimento é projetado para ser repetido e auditado de forma idêntica por terceiros.</p>
@@ -748,11 +806,11 @@ h2 .num {
     </div>
 </section>
 
-<!-- 9. VALIDAÇÃO — DADOS DE REFERÊNCIA EXTERNOS -->
+<!-- 13. VALIDAÇÃO — DADOS DE REFERÊNCIA EXTERNOS -->
 <section class="slide">
-    <div class="slide-meta"><span class="kicker">Validação e Dados</span><span>09</span></div>
+    <div class="slide-meta"><span class="kicker">Validação e Dados</span><span>12</span></div>
     <div class="slide-content">
-        <h2 class="reveal"><span class="num">·</span>Dados de Referência Externos</h2>
+        <h2 class="reveal"><span class="num">6</span>Dados de Referência Externos</h2>
         <p class="summary reveal">O CheguersDB será avaliado com benchmarks e workloads inspirados em sistemas reais publicados pela comunidade, que servem como baselines de comparação.</p>
         <div class="grid">
             <div class="card reveal">
@@ -793,9 +851,9 @@ h2 .num {
     </div>
 </section>
 
-<!-- 10. VALIDAÇÃO — PROTOCOLO EXPERIMENTAL -->
+<!-- 14. VALIDAÇÃO — PROTOCOLO EXPERIMENTAL -->
 <section class="slide">
-    <div class="slide-meta"><span class="kicker">Validação e Dados</span><span>10</span></div>
+    <div class="slide-meta"><span class="kicker">Validação e Dados</span><span>13</span></div>
     <div class="slide-content">
         <h2 class="reveal"><span class="num">·</span>Protocolo Experimental</h2>
         <p class="summary reveal">Todos os experimentos rodam sob um protocolo reproduzível e controlado, permitindo comparação justa com sistemas existentes.</p>
@@ -839,9 +897,9 @@ h2 .num {
     </div>
 </section>
 
-<!-- 11. VALIDAÇÃO — MÉTRICAS E CRITÉRIOS DE SUCESSO (TABELA DE METAS) -->
+<!-- 15. VALIDAÇÃO — MÉTRICAS E CRITÉRIOS DE SUCESSO (TABELA DE METAS) -->
 <section class="slide">
-    <div class="slide-meta"><span class="kicker">Validação e Dados</span><span>11</span></div>
+    <div class="slide-meta"><span class="kicker">Validação e Dados</span><span>14</span></div>
     <div class="slide-content">
         <h2 class="reveal"><span class="num">·</span>Métricas e Critérios de Sucesso</h2>
         <p class="summary reveal">Além de medir desempenho, o projeto define metas quantitativas que servirão de referência para avaliar o sucesso da arquitetura proposta.</p>
@@ -880,9 +938,9 @@ h2 .num {
     </div>
 </section>
 
-<!-- 12. VALIDAÇÃO — CRITÉRIO DE SUCESSO DO PROJETO -->
+<!-- 16. VALIDAÇÃO — CRITÉRIO DE SUCESSO DO PROJETO -->
 <section class="slide">
-    <div class="slide-meta"><span class="kicker">Validação e Dados</span><span>12</span></div>
+    <div class="slide-meta"><span class="kicker">Validação e Dados</span><span>15</span></div>
     <div class="slide-content">
         <h2 class="reveal"><span class="num">·</span>Critério de Sucesso do Projeto</h2>
         <p class="summary reveal">As metas experimentais consolidam-se num conjunto de condições objetivas de validação da arquitetura.</p>
@@ -902,88 +960,9 @@ h2 .num {
     </div>
 </section>
 
-<!-- 12. POSICIONAMENTO: CONTEXTO -->
+<!-- 17. METADADOS -->
 <section class="slide">
-    <div class="slide-meta"><span class="kicker">Posicionamento Científico</span><span>13</span></div>
-    <div class="slide-content">
-        <h2 class="reveal"><span class="num">5</span>Contexto</h2>
-        <p class="summary reveal">O CheguersDB situa-se na interseção entre quatro áreas ativas de pesquisa e engenharia.</p>
-        <div class="pills reveal">
-            <span>GraphRAG</span>
-            <span>HybridRAG</span>
-            <span>Bancos de Grafos</span>
-            <span>Bancos Vetoriais</span>
-        </div>
-    </div>
-</section>
-
-<!-- 10. TRABALHOS RELACIONADOS -->
-<section class="slide">
-    <div class="slide-meta"><span class="kicker">Posicionamento Científico</span><span>14</span></div>
-    <div class="slide-content">
-        <h2 class="reveal"><span class="num">·</span>Trabalhos Relacionados</h2>
-        <p class="summary reveal">Referências diretas embasam a abordagem; as indiretas representam a prática atual de mercado.</p>
-        <div class="refs">
-            <div class="ref-col reveal">
-                <h3>Científico</h3>
-                <ul>
-                    <li>Peng et al. (2024) — GraphRAG (survey)</li>
-                    <li>HybridRAG (2025)</li>
-                </ul>
-            </div>
-            <div class="ref-col reveal">
-                <h3>Software</h3>
-                <ul>
-                    <li>Neo4j</li>
-                    <li>Kuzu</li>
-                    <li>TigerBeetle</li>
-                    <li>RushDB</li>
-                    <li>Turso</li>
-                    <li>HelixDB</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- 11. LACUNA E PERGUNTA DE PESQUISA -->
-<section class="slide">
-    <div class="slide-meta"><span class="kicker">Posicionamento Científico</span><span>15</span></div>
-    <div class="slide-content">
-        <h2 class="reveal"><span class="num">·</span>Lacuna e Pergunta de Pesquisa</h2>
-        <p class="summary reveal">Stacks compostas (vetorial + grafo + orquestração externa) dificultam a avaliação experimental — lacuna que esta contribuição original endereça.</p>
-        <ul class="bullets check reveal">
-            <li>Benchmark reproduzível para <strong>workloads GraphRAG</strong>.</li>
-            <li>Análise do <strong>custo da recuperação híbrida</strong> em ambiente controlado.</li>
-        </ul>
-        <blockquote class="quote reveal">Investigar se uma arquitetura unificada pode substituir stacks compostas para aplicações HybridRAG, reduzindo complexidade e aumentando a reprodutibilidade experimental.</blockquote>
-    </div>
-</section>
-
-<!-- 7. COMO USAR -->
-<section class="slide">
-    <div class="slide-meta"><span class="kicker">Uso do Software</span><span>17</span></div>
-    <div class="slide-content">
-        <h2 class="reveal"><span class="num">·</span>Como o usuário utiliza</h2>
-        <p class="summary reveal">Via interface de linha de comando apoiada por uma biblioteca central, o usuário ingere dados e emite três tipos de consulta com resultados determinísticos.</p>
-        <ul class="bullets reveal">
-            <li>Cria ou abre um arquivo de banco local e ingere nós, arestas e embeddings por um modelo de comandos tipado.</li>
-            <li>Resultados sobrevivem a reinícios de processo via replay do log.</li>
-            <li>O harness gera conjuntos sintéticos com semente e reporta latência, vazão e memória sob protocolo controlado.</li>
-        </ul>
-        <div class="pipeline reveal">
-            <span class="step">Vetor top-k</span>
-            <span class="arrow">→</span>
-            <span class="step">Travessia k-saltos</span>
-            <span class="arrow">→</span>
-            <span class="step">Consulta híbrida fim a fim</span>
-        </div>
-    </div>
-</section>
-
-<!-- 8. METADADOS -->
-<section class="slide">
-    <div class="slide-meta"><span class="kicker">Metadados do Código</span><span>18</span></div>
+    <div class="slide-meta"><span class="kicker">Metadados do Código</span><span>16</span></div>
     <div class="slide-content">
         <h2 class="reveal"><span class="num">·</span>Metadados do código</h2>
         <p class="summary reveal">Engine de código aberto em Rust, versionado em git, com dependências declaradas no Cargo.toml.</p>
