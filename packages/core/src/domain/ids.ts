@@ -1,37 +1,51 @@
-import { randomUUID } from "node:crypto"
+import { randomUUID } from "node:crypto";
 
-declare const brand: unique symbol
+declare const brand: unique symbol;
 
-export type RecordId = string & { readonly [brand]: "RecordId" }
-export type RelationshipId = string & { readonly [brand]: "RelationshipId" }
-export const asRecordId = (value: string): RecordId => value as RecordId
-export const asRelationshipId = (value: string): RelationshipId =>
-  value as RelationshipId
+export type RecordId = string & { readonly [brand]: "RecordId" };
+export type RelationshipId = string & { readonly [brand]: "RelationshipId" };
 
-export const generateRecordId = (): RecordId =>
-  `rec_${randomUUID().replace(/-/g, "")}` as RecordId
+export const asRecordId = (value: string): RecordId => {
+  if (!isRecordId(value)) {
+    throw new RangeError(`invalid record id: ${value}`);
+  }
+  return value;
+};
 
-export const generateRelationshipId = (): RelationshipId =>
-  `rel_${randomUUID().replace(/-/g, "")}` as RelationshipId
+export const asRelationshipId = (value: string): RelationshipId => {
+  if (!isRelationshipId(value)) {
+    throw new RangeError(`invalid relationship id: ${value}`);
+  }
+  return value;
+};
 
-const ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{7,127}$/
+export const generateRecordId = (): RecordId => {
+  const id = `rec_${randomUUID().replace(/-/g, "")}`;
+  // SAFETY: rec_ prefix plus 32 hex chars always satisfies ID_PATTERN.
+  return id as RecordId;
+};
 
-export const isRecordId = (value: string): value is RecordId =>
-  ID_PATTERN.test(value)
+export const generateRelationshipId = (): RelationshipId => {
+  const id = `rel_${randomUUID().replace(/-/g, "")}`;
+  // SAFETY: rel_ prefix plus 32 hex chars always satisfies ID_PATTERN.
+  return id as RelationshipId;
+};
 
-export const isRelationshipId = (value: string): value is RelationshipId =>
-  ID_PATTERN.test(value)
+const ID_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{7,127}$/;
 
-export type LabelName = string & { readonly [brand]: "LabelName" }
+export const isRecordId = (value: string): value is RecordId => ID_PATTERN.test(value);
 
-const LABEL_PATTERN = /^[A-Za-z_][A-Za-z0-9_.:-]{0,127}$/
+export const isRelationshipId = (value: string): value is RelationshipId => ID_PATTERN.test(value);
 
-export const isLabelName = (value: string): value is LabelName =>
-  LABEL_PATTERN.test(value)
+export type LabelName = string & { readonly [brand]: "LabelName" };
 
-export type RelationshipType = string & { readonly [brand]: "RelationshipType" }
+const LABEL_PATTERN = /^[A-Za-z_][A-Za-z0-9_.:-]{0,127}$/;
 
-const REL_TYPE_PATTERN = /^[A-Za-z_][A-Za-z0-9_.:-]{0,127}$/
+export const isLabelName = (value: string): value is LabelName => LABEL_PATTERN.test(value);
+
+export type RelationshipType = string & { readonly [brand]: "RelationshipType" };
+
+const REL_TYPE_PATTERN = /^[A-Za-z_][A-Za-z0-9_.:-]{0,127}$/;
 
 export const isRelationshipType = (value: string): value is RelationshipType =>
-  REL_TYPE_PATTERN.test(value)
+  REL_TYPE_PATTERN.test(value);

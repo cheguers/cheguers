@@ -1,126 +1,109 @@
-import { Effect } from "effect"
-import { ValidationError, type CheguersError } from "../errors.js"
+import { Effect } from "effect";
+import { ValidationError, type CheguersError } from "../errors.js";
+import { isLabelName, isRecordId, isRelationshipType } from "../domain/ids.js";
+import type { JsonObject, JsonValue } from "../domain/model.js";
 import {
-  isLabelName,
-  isRecordId,
-  isRelationshipType
-} from "../domain/ids.js"
-import type { JsonValue } from "../domain/model.js"
-import type {
-  FilterAst,
-  OrderAst,
-  RecordQueryAst,
-  RelatedAst
-} from "./ast.js"
-import { serializeFilterAst } from "./ast.js"
-import type { PropertyOperator, RecordQuery, WhereExpression } from "./types.js"
+  isBooleanValue,
+  isJsonArray,
+  isNumberValue,
+  isPlainObject,
+  isStringValue,
+} from "../json/runtime.js";
+import type { FilterAst, OrderAst, RecordQueryAst, RelatedAst } from "./ast.js";
+import { serializeFilterAst } from "./ast.js";
+import type { PropertyOperator, RecordQuery, WhereExpression } from "./types.js";
 
-const MAX_HOPS = 3
-const MIN_HOPS = 1
+const MAX_HOPS = 3;
+const MIN_HOPS = 1;
 
-const COMPARISON_OPS = new Set<string>(["eq", "neq", "gt", "gte", "lt", "lte"])
-const STRING_OPS = new Set<string>(["contains", "startsWith", "endsWith"])
-const MEMBERSHIP_OPS = new Set<string>(["in", "notIn"])
+const COMPARISON_OPS = new Set<string>(["eq", "neq", "gt", "gte", "lt", "lte"]);
+const STRING_OPS = new Set<string>(["contains", "startsWith", "endsWith"]);
+const MEMBERSHIP_OPS = new Set<string>(["in", "notIn"]);
 
 function fail(message: string): never {
-  throw new ValidationError({ message })
+  throw new ValidationError({ message });
 }
 
 const isScalarComparable = (value: JsonValue): boolean =>
-  value === null ||
-  typeof value === "string" ||
-  typeof value === "number" ||
-  typeof value === "boolean"
+  value === null || isStringValue(value) || isNumberValue(value) || isBooleanValue(value);
 
-const validatePropertyName = (property: unknown): string => {
-  if (
-    typeof property !== "string" ||
-    property.length === 0 ||
-    property.length > 255
-  ) {
-    fail("query property names must be non-empty strings of at most 255 characters")
+const isPropertyOperator = (op: string): op is PropertyOperator =>
+  COMPARISON_OPS.has(op) || STRING_OPS.has(op) || MEMBERSHIP_OPS.has(op) || op === "exists";
+
+const parsePropertyName = (property: JsonValue | undefined): string => {
+  if (!isStringValue(property) || property.length === 0 || property.length > 255) {
+    fail("query property names must be non-empty strings of at most 255 characters");
   }
-  // eslint-disable-next-line no-control-regex
+  // oxlint-disable-next-line no-control-regex -- reject ASCII control chars in property names
   if (/[\u0000-\u001f]/.test(property)) {
-    fail("query property names must not contain control characters")
+    fail("query property names must not contain control characters");
   }
-  return property
-}
+  return property;
+};
 
-const isPropertyLeaf = (
-  expr: Record<string, unknown>
-): boolean => "property" in expr
+const isPropertyLeaf = (expr: JsonObject): boolean => "property" in expr;
 
-const isRelatedLeaf = (expr: Record<string, unknown>): boolean =>
-  "related" in expr
+const isRelatedLeaf = (expr: JsonObject): boolean => "related" in expr;
 
-const parsePropertyLeaf = (expr: Record<string, unknown>): FilterAst => {
-  const op = expr.op
-  if (typeof op !== "string") fail("query property predicates require a string op")
-  if (
-    !COMPARISON_OPS.has(op) &&
-    !STRING_OPS.has(op) &&
-    !MEMBERSHIP_OPS.has(op) &&
-    op !== "exists"
-  ) {
-    fail(`unsupported query operator: ${op}`)
+const parsePropertyLeaf = (expr: JsonObject): FilterAst => {
+  const opRaw = expr.op;
+  if (!isStringValue(opRaw)) fail("query property predicates require a string op");
+  if (!isPropertyOperator(opRaw)) {
+    fail(`unsupported query operator: ${opRaw}`);
   }
-  const operator = op as PropertyOperator
-  const property = validatePropertyName(expr.property)
-  const value = expr.value as JsonValue | undefined
+  const operator = opRaw;
+  const property = parsePropertyName(expr.property);
+  const value = expr.value;
 
   if (operator === "exists") {
     if (value !== undefined && value !== true && value !== false) {
-      fail("exists accepts only undefined or a boolean value")
+      fail("exists accepts only undefined or a boolean value");
     }
     return {
       kind: "property",
       property,
       op: operator,
-      value: value !== false
-    }
+      value: value !== false,
+    };
   }
 
   if (MEMBERSHIP_OPS.has(operator)) {
-    if (!Array.isArray(value)) fail(`${operator} requires an array of scalar values`)
-    const arr = value as ReadonlyArray<JsonValue>
-    for (const v of arr) {
-      if (!isScalarComparable(v)) fail(`${operator} requires an array of scalar values`)
+    if (!isJsonArray(value)) fail(`${operator} requires an array of scalar values`);
+    for (const entry of value) {
+      if (!isScalarComparable(entry)) fail(`${operator} requires an array of scalar values`);
     }
-    const sorted = [...arr].sort((a, b) =>
-      String(a).localeCompare(String(b))
-    ) as JsonValue
-    return { kind: "property", property, op: operator, value: sorted }
+    const sorted = [...value].sort((a, b) => String(a).localeCompare(String(b)));
+    return { kind: "property", property, op: operator, value: sorted };
   }
 
   if (STRING_OPS.has(operator)) {
-    if (typeof value !== "string") fail(`${operator} requires a string value`)
-    return { kind: "property", property, op: operator, value }
+    if (!isStringValue(value)) fail(`${operator} requires a string value`);
+    return { kind: "property", property, op: operator, value };
   }
 
-  if (!isScalarComparable(value as JsonValue)) {
-    fail(`${operator} requires a scalar value (string, number, boolean, or null)`)
+  if (value === undefined || !isScalarComparable(value)) {
+    fail(`${operator} requires a scalar value (string, number, boolean, or null)`);
   }
-  return { kind: "property", property, op: operator, value }
-}
+  return { kind: "property", property, op: operator, value };
+};
 
-const parseRelated = (spec: unknown): FilterAst => {
-  if (typeof spec !== "object" || spec === null || Array.isArray(spec)) {
-    fail("related predicates require an object spec")
+const parseRelated = (spec: JsonValue): FilterAst => {
+  if (!isPlainObject(spec)) {
+    fail("related predicates require an object spec");
   }
-  const s = spec as Record<string, unknown>
-  if (typeof s.type !== "string" || !isRelationshipType(s.type)) {
-    fail("related predicates require a valid relationship type")
+  const s = spec;
+  if (!isStringValue(s.type) || !isRelationshipType(s.type)) {
+    fail("related predicates require a valid relationship type");
   }
   if (s.direction !== "outgoing" && s.direction !== "incoming") {
-    fail('related predicates require direction "outgoing" or "incoming"')
+    fail('related predicates require direction "outgoing" or "incoming"');
   }
-  const direction = s.direction as "outgoing" | "incoming"
-  const relType = s.type as string
-  const rawMin = s.minHops ?? 1
-  const rawMax = s.maxHops ?? s.minHops ?? 1
-  const minHops = typeof rawMin === "number" ? rawMin : Number.NaN
-  const maxHops = typeof rawMax === "number" ? rawMax : Number.NaN
+  const direction = s.direction;
+  const relType = s.type;
+  const rawMin = s.minHops ?? 1;
+  const rawMax = s.maxHops ?? s.minHops ?? 1;
+  const minHops = isNumberValue(rawMin) ? rawMin : Number.NaN;
+  const maxHops = isNumberValue(rawMax) ? rawMax : Number.NaN;
   if (
     !Number.isInteger(minHops) ||
     minHops < MIN_HOPS ||
@@ -130,130 +113,138 @@ const parseRelated = (spec: unknown): FilterAst => {
     maxHops > MAX_HOPS ||
     minHops > maxHops
   ) {
-    fail(`related hops must be integers between ${MIN_HOPS} and ${MAX_HOPS} with min <= max`)
+    fail(`related hops must be integers between ${MIN_HOPS} and ${MAX_HOPS} with min <= max`);
   }
-  let where: FilterAst | undefined
+  let where: FilterAst | undefined;
   if (s.where !== undefined) {
-    where = parseWhereExpression(s.where as WhereExpression)
+    if (!isPlainObject(s.where)) fail("related where must be an object");
+    where = parseWhereInput(s.where);
   }
   return {
     kind: "related",
-    related: { type: relType, direction, minHops, maxHops, where } satisfies RelatedAst
-  }
-}
+    related: { type: relType, direction, minHops, maxHops, where } satisfies RelatedAst,
+  };
+};
 
 const sortChildren = (children: ReadonlyArray<FilterAst>): ReadonlyArray<FilterAst> =>
-  [...children].sort(
-    (a, b) => serializeFilterAst(a).localeCompare(serializeFilterAst(b))
-  )
+  [...children].sort((a, b) => serializeFilterAst(a).localeCompare(serializeFilterAst(b)));
 
-type LogicalKind = "and" | "or"
+type LogicalKind = "and" | "or";
 
-const flattenLogical = (
-  kind: LogicalKind,
-  children: ReadonlyArray<FilterAst>
-): FilterAst => {
-  const flattened: Array<FilterAst> = []
+const flattenLogical = (kind: LogicalKind, children: ReadonlyArray<FilterAst>): FilterAst => {
+  const flattened: Array<FilterAst> = [];
   for (const child of children) {
     if (child.kind === kind) {
-      flattened.push(...child.children)
+      flattened.push(...child.children);
     } else {
-      flattened.push(child)
+      flattened.push(child);
     }
   }
-  const unique = new Map<string, FilterAst>()
+  const unique = new Map<string, FilterAst>();
   for (const child of flattened) {
-    unique.set(serializeFilterAst(child), child)
+    unique.set(serializeFilterAst(child), child);
   }
   if (unique.size === 1) {
-    const first = [...unique.values()][0]!
-    return first
+    const first = [...unique.values()][0]!;
+    return first;
   }
-  return { kind, children: sortChildren([...unique.values()]) }
+  return { kind, children: sortChildren([...unique.values()]) };
+};
+
+function parseWhereInput(raw: JsonObject): FilterAst {
+  if (!isPlainObject(raw)) {
+    fail("where expressions must be objects");
+  }
+  const e = raw;
+  if ("and" in e) {
+    const arr = e.and;
+    if (!isJsonArray(arr) || arr.length === 0) {
+      fail("and requires a non-empty array of expressions");
+    }
+    const children = arr.map((child) => {
+      if (!isPlainObject(child)) fail("and requires an array of object expressions");
+      return parseWhereInput(child);
+    });
+    return flattenLogical("and", children);
+  }
+  if ("or" in e) {
+    const arr = e.or;
+    if (!isJsonArray(arr) || arr.length === 0) {
+      fail("or requires a non-empty array of expressions");
+    }
+    const children = arr.map((child) => {
+      if (!isPlainObject(child)) fail("or requires an array of object expressions");
+      return parseWhereInput(child);
+    });
+    return flattenLogical("or", children);
+  }
+  if ("not" in e) {
+    if (e.not === undefined || !isPlainObject(e.not)) {
+      fail("not requires an object expression");
+    }
+    return { kind: "not", child: parseWhereInput(e.not) };
+  }
+  if (isPropertyLeaf(e)) {
+    return parsePropertyLeaf(e);
+  }
+  if (isRelatedLeaf(e)) {
+    if (e.related === undefined) {
+      fail("related predicates require an object spec");
+    }
+    return parseRelated(e.related);
+  }
+  fail("unrecognized where expression shape");
 }
 
 export function parseWhereExpression(expr: WhereExpression): FilterAst {
-  if (typeof expr !== "object" || expr === null || Array.isArray(expr)) {
-    fail("where expressions must be objects")
-  }
-  const e = expr as unknown as Record<string, unknown>
-  if ("and" in e) {
-    const arr = e.and
-    if (!Array.isArray(arr) || arr.length === 0) {
-      fail("and requires a non-empty array of expressions")
-    }
-    const children = (arr as ReadonlyArray<WhereExpression>).map(parseWhereExpression)
-    return flattenLogical("and", children)
-  }
-  if ("or" in e) {
-    const arr = e.or
-    if (!Array.isArray(arr) || arr.length === 0) {
-      fail("or requires a non-empty array of expressions")
-    }
-    const children = (arr as ReadonlyArray<WhereExpression>).map(parseWhereExpression)
-    return flattenLogical("or", children)
-  }
-  if ("not" in e) {
-    return { kind: "not", child: parseWhereExpression(e.not as WhereExpression) }
-  }
-  if (isPropertyLeaf(e)) {
-    return parsePropertyLeaf(e)
-  }
-  if (isRelatedLeaf(e)) {
-    return parseRelated(e.related)
-  }
-  fail("unrecognized where expression shape")
+  // SAFETY: every WhereExpression variant is a JSON object tree validated by this parser.
+  return parseWhereInput(expr as JsonObject);
 }
 
 const parseOrderByInput = (q: RecordQuery): ReadonlyArray<OrderAst> => {
-  if (q.orderBy === undefined) return []
-  if (!Array.isArray(q.orderBy)) fail("orderBy must be an array")
+  if (q.orderBy === undefined) return [];
+  if (!Array.isArray(q.orderBy)) fail("orderBy must be an array");
   return q.orderBy.map((entry) => {
-    if (typeof entry !== "object" || entry === null) {
-      fail("orderBy entries must be objects")
+    if (!isPlainObject(entry)) {
+      fail("orderBy entries must be objects");
     }
-    const o = entry as Record<string, unknown>
-    const property = o.property === undefined ? undefined : validatePropertyName(o.property)
-    if (property === undefined) fail("orderBy entries require a property")
-    if (o.direction !== undefined && o.direction !== "asc" && o.direction !== "desc") {
-      fail('orderBy direction must be "asc" or "desc"')
+    const property = entry.property === undefined ? undefined : parsePropertyName(entry.property);
+    if (property === undefined) fail("orderBy entries require a property");
+    if (entry.direction !== undefined && entry.direction !== "asc" && entry.direction !== "desc") {
+      fail('orderBy direction must be "asc" or "desc"');
     }
     return {
       property,
-      direction: o.direction === "desc" ? ("desc" as const) : ("asc" as const)
-    }
-  })
-}
+      direction: entry.direction === "desc" ? ("desc" as const) : ("asc" as const),
+    };
+  });
+};
 
 export const parseRecordQuery = (
-  query: RecordQuery
+  query: RecordQuery,
 ): Effect.Effect<RecordQueryAst, CheguersError> =>
   Effect.sync(() => {
-    if (typeof query !== "object" || query === null || Array.isArray(query)) {
-      fail("record queries must be objects")
-    }
-    let id: string | undefined
+    let id: string | undefined;
     if (query.id !== undefined) {
-      if (typeof query.id !== "string" || !isRecordId(query.id)) {
-        fail(`invalid record id in query: ${String(query.id)}`)
+      if (!isStringValue(query.id) || !isRecordId(query.id)) {
+        fail(`invalid record id in query: ${String(query.id)}`);
       }
-      id = query.id
+      id = query.id;
     }
-    let labels: ReadonlyArray<string> = []
+    let labels: ReadonlyArray<string> = [];
     if (query.labels !== undefined) {
       if (!Array.isArray(query.labels) || query.labels.some((l) => !isLabelName(l))) {
-        fail("query labels must be an array of valid label names")
+        fail("query labels must be an array of valid label names");
       }
-      labels = [...new Set(query.labels)].sort()
+      labels = [...new Set(query.labels)].sort();
     }
-    const where =
-      query.where === undefined ? undefined : parseWhereExpression(query.where)
-    const orderBy = parseOrderByInput(query)
+    const where = query.where === undefined ? undefined : parseWhereExpression(query.where);
+    const orderBy = parseOrderByInput(query);
     if (query.limit !== undefined && (!Number.isInteger(query.limit) || query.limit < 0)) {
-      fail("limit must be a non-negative integer")
+      fail("limit must be a non-negative integer");
     }
     if (query.offset !== undefined && (!Number.isInteger(query.offset) || query.offset < 0)) {
-      fail("offset must be a non-negative integer")
+      fail("offset must be a non-negative integer");
     }
     return {
       id,
@@ -261,15 +252,15 @@ export const parseRecordQuery = (
       where,
       orderBy,
       limit: query.limit,
-      offset: query.offset
-    } satisfies RecordQueryAst
+      offset: query.offset,
+    } satisfies RecordQueryAst;
   }).pipe(
-    Effect.mapError((error: unknown): CheguersError =>
-      error instanceof ValidationError
-        ? error
-        : new ValidationError({ message: "invalid query", cause: error })
-    )
-  )
+    Effect.mapError((cause: unknown): CheguersError =>
+      cause instanceof ValidationError
+        ? cause
+        : new ValidationError({ message: "invalid query", cause }),
+    ),
+  );
 
 // re-export for callers that need hop bounds alongside the AST module
-export { MAX_HOPS as QUERY_MAX_HOPS, MIN_HOPS as QUERY_MIN_HOPS }
+export { MAX_HOPS as QUERY_MAX_HOPS, MIN_HOPS as QUERY_MIN_HOPS };

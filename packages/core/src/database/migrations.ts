@@ -1,7 +1,7 @@
 export interface Migration {
-  readonly version: number
-  readonly name: string
-  readonly statements: ReadonlyArray<string>
+  readonly version: number;
+  readonly name: string;
+  readonly statements: ReadonlyArray<string>;
 }
 
 export const MIGRATIONS: ReadonlyArray<Migration> = [
@@ -57,9 +57,9 @@ export const MIGRATIONS: ReadonlyArray<Migration> = [
         first_seen TEXT NOT NULL,
         last_seen TEXT NOT NULL,
         PRIMARY KEY (label, property)
-      )`
-    ]
-  }
-]
+      )`,
+    ],
+  },
+];
 
-export const CURRENT_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version
+export const CURRENT_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;

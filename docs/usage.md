@@ -34,8 +34,8 @@ There is no server. You open a file, you use it, you close it.
 All TypeScript examples assume:
 
 ```ts
-import { Effect } from "effect"
-import { open } from "@cheguers/core"
+import { Effect } from "effect";
+import { open } from "@cheguers/core";
 ```
 
 Every database operation returns an `Effect` from the
@@ -43,7 +43,7 @@ Every database operation returns an `Effect` from the
 the database until you run them:
 
 ```ts
-const result = await Effect.runPromise(db.records.create({ data: { name: "Ada" } }))
+const result = await Effect.runPromise(db.records.create({ data: { name: "Ada" } }));
 ```
 
 ---
@@ -61,7 +61,7 @@ $ pnpm test        # full test suite
 In your own code, import from `@cheguers/core`:
 
 ```ts
-import { open } from "@cheguers/core"
+import { open } from "@cheguers/core";
 ```
 
 Requirements: Node.js 20+, and `@tursodatabase/database` (installed
@@ -77,14 +77,14 @@ no other entry points.
 
 ```ts
 const program = Effect.gen(function* () {
-  const db = yield* open("./app.db")
+  const db = yield* open("./app.db");
 
   // ... use db ...
 
-  yield* db.close
-})
+  yield* db.close;
+});
 
-await Effect.runPromise(program)
+await Effect.runPromise(program);
 ```
 
 The file persists everything: records, labels, relationships, vectors, and the
@@ -94,17 +94,17 @@ The handle shape:
 
 ```ts
 interface CheguersDBHandle {
-  records:       RecordsShape
-  relationships: RelationshipsShape
-  traversal:     TraversalShape
-  imports:       NestedImportShape
-  schema:        SchemaShape
-  query:         QueryShape
-  vectors:       VectorShape
-  hybrid:        HybridShape
-  transaction:   TransactionShape["run"]
-  bulk:          BulkShape
-  close:         Effect<void, CheguersError>
+  records: RecordsShape;
+  relationships: RelationshipsShape;
+  traversal: TraversalShape;
+  imports: NestedImportShape;
+  schema: SchemaShape;
+  query: QueryShape;
+  vectors: VectorShape;
+  hybrid: HybridShape;
+  transaction: TransactionShape["run"];
+  bulk: BulkShape;
+  close: Effect<void, CheguersError>;
 }
 ```
 
@@ -120,10 +120,12 @@ dash, must not start with a digit or dash).
 ### Create
 
 ```ts
-const ada = yield* db.records.create({
-  data: { name: "Ada Lovelace", age: 36, active: true },
-  labels: ["Person", "Engineer"]
-})
+const ada =
+  yield *
+  db.records.create({
+    data: { name: "Ada Lovelace", age: 36, active: true },
+    labels: ["Person", "Engineer"],
+  });
 // ada.id        -> "rec_<32 hex chars>"
 // ada.labels    -> ["Person", "Engineer"]
 // ada.createdAt / ada.updatedAt -> ISO timestamps
@@ -137,17 +139,19 @@ letters/digits/underscore/dash, 8–128 chars total). Duplicate IDs fail with
 ### Read / update / delete
 
 ```ts
-const ada2 = yield* db.records.get(ada.id)
+const ada2 = yield * db.records.get(ada.id);
 
 // Update data is a SHALLOW MERGE on top of stored data.
 // Labels are adjusted additively.
-const updated = yield* db.records.update(ada.id, {
-  data: { age: 37 },              // merges: other properties stay
-  addLabels: ["Admin"],
-  removeLabels: ["Engineer"]
-})
+const updated =
+  yield *
+  db.records.update(ada.id, {
+    data: { age: 37 }, // merges: other properties stay
+    addLabels: ["Admin"],
+    removeLabels: ["Engineer"],
+  });
 
-yield* db.records.delete(ada.id)
+yield * db.records.delete(ada.id);
 ```
 
 Deleting a record is atomic and cascades: its labels, its vectors, and every
@@ -156,7 +160,7 @@ relationship touching it are removed in the same transaction.
 ### List by label
 
 ```ts
-const engineers = yield* db.records.listByLabels(["Engineer"])
+const engineers = yield * db.records.listByLabels(["Engineer"]);
 ```
 
 ---
@@ -167,15 +171,17 @@ Typed, directed edges between records with optional JSON properties. One
 canonical edge table backs all graph features.
 
 ```ts
-const rel = yield* db.relationships.create({
-  type: "OWNS",                    // same identifier rules as labels
-  sourceId: ada.id,
-  targetId: projectId,
-  properties: { role: "lead" }     // optional
-})
+const rel =
+  yield *
+  db.relationships.create({
+    type: "OWNS", // same identifier rules as labels
+    sourceId: ada.id,
+    targetId: projectId,
+    properties: { role: "lead" }, // optional
+  });
 
-const fetched = yield* db.relationships.get(rel.id)
-yield* db.relationships.delete(rel.id)
+const fetched = yield * db.relationships.get(rel.id);
+yield * db.relationships.delete(rel.id);
 ```
 
 Endpoints must exist; otherwise you get a `ValidationError`.
@@ -183,9 +189,9 @@ Endpoints must exist; otherwise you get a `ValidationError`.
 Incoming and outgoing lookups, optionally filtered by type:
 
 ```ts
-const owned = yield* db.relationships.outgoing(ada.id)          // all
-const ownsP = yield* db.relationships.outgoing(ada.id, "OWNS")  // one type
-const fanIn = yield* db.relationships.incoming(projectId)
+const owned = yield * db.relationships.outgoing(ada.id); // all
+const ownsP = yield * db.relationships.outgoing(ada.id, "OWNS"); // one type
+const fanIn = yield * db.relationships.incoming(projectId);
 ```
 
 Deleting a relationship affects only that relationship. Deleting a record
@@ -208,27 +214,29 @@ Normalization rules:
 - relationship direction is parent → child.
 
 ```ts
-const result = yield* db.imports.run(
-  {
-    title: "post-1",
-    views: 12,
-    tags: ["x", "y"],                                // scalar array -> property
-    author: { name: "alice" },                       // object      -> child record
-    comments: [{ body: "nice" }, { body: "more" }]   // objects     -> children
-  },
-  { rootLabels: ["Post"] }                           // optional labels for the root
-)
+const result =
+  yield *
+  db.imports.run(
+    {
+      title: "post-1",
+      views: 12,
+      tags: ["x", "y"], // scalar array -> property
+      author: { name: "alice" }, // object      -> child record
+      comments: [{ body: "nice" }, { body: "more" }], // objects     -> children
+    },
+    { rootLabels: ["Post"] }, // optional labels for the root
+  );
 ```
 
 Result:
 
 ```ts
-result.rootId                 // public ID of the root record
-result.recordsCreated         // 4  (root + author + 2 comments)
-result.relationshipsCreated   // 3  (author + comments + comments)
-result.labelsLinked           // 4
-result.idsByLocalId           // { root: "rec_...", "root.author": "rec_...",
-                              //   "root.comments.0": "rec_...", ... }
+result.rootId; // public ID of the root record
+result.recordsCreated; // 4  (root + author + 2 comments)
+result.relationshipsCreated; // 3  (author + comments + comments)
+result.labelsLinked; // 4
+result.idsByLocalId; // { root: "rec_...", "root.author": "rec_...",
+//   "root.comments.0": "rec_...", ... }
 ```
 
 Notes:
@@ -247,11 +255,11 @@ observation count, first/last seen). The catalog is metadata only — your JSON
 is always canonical and never modified.
 
 ```ts
-const entries = yield* db.schema.introspect()
+const entries = yield * db.schema.introspect();
 // [{ label: "Person", property: "age", inferredType: "number",
 //    observations: 6, firstSeen: "...", lastSeen: "..." }, ...]
 
-const justPeople = yield* db.schema.introspect({ label: "Person" })
+const justPeople = yield * db.schema.introspect({ label: "Person" });
 ```
 
 Inferred types: `string`, `number`, `boolean`, `null` (plus datetime where
@@ -266,28 +274,30 @@ SQL; all values are parameterized; results are deterministically ordered
 (your `orderBy` first, then record ID as tie-breaker).
 
 ```ts
-const people = yield* db.query.find({
-  labels: ["Person"],
-  where: {
-    and: [
-      { property: "age", op: "gte", value: 40 },
-      { property: "role", op: "eq", value: "engineer" }
-    ]
-  },
-  orderBy: [{ property: "age", direction: "desc" }],
-  limit: 10,
-  offset: 0
-})
+const people =
+  yield *
+  db.query.find({
+    labels: ["Person"],
+    where: {
+      and: [
+        { property: "age", op: "gte", value: 40 },
+        { property: "role", op: "eq", value: "engineer" },
+      ],
+    },
+    orderBy: [{ property: "age", direction: "desc" }],
+    limit: 10,
+    offset: 0,
+  });
 ```
 
 ### Operators
 
-| Group | Operators |
-| --- | --- |
+| Group      | Operators                             |
+| ---------- | ------------------------------------- |
 | Comparison | `eq`, `neq`, `gt`, `gte`, `lt`, `lte` |
-| String | `contains`, `startsWith`, `endsWith` |
-| Membership | `in`, `notIn` (value is an array) |
-| Existence | `exists` (no value needed) |
+| String     | `contains`, `startsWith`, `endsWith`  |
+| Membership | `in`, `notIn` (value is an array)     |
+| Existence  | `exists` (no value needed)            |
 
 ### Shape of a `where` expression
 
@@ -297,7 +307,7 @@ type WhereExpression =
   | { and: WhereExpression[] }
   | { or: WhereExpression[] }
   | { not: WhereExpression }
-  | { related: RelatedSpec }
+  | { related: RelatedSpec };
 ```
 
 Examples:
@@ -346,22 +356,24 @@ Bounded BFS over the canonical edge table. Traversal is **bounded by default**:
 1–3 hops, explicit limits, cycle-safe.
 
 ```ts
-const result = yield* db.traversal.traverse({
-  startIds: [ada.id],                        // one or more start records
-  direction: "outgoing",                     // "outgoing" | "incoming" | "both"
-  relationshipTypes: ["OWNS", "HAS_TASK"],   // optional filter
-  minDepth: 0,                               // 0 = include start records as hits
-  maxDepth: 2,                               // hard bound: 0..3
-  limit: 100,                                // max hits
-  includePaths: true                         // per-hit provenance paths
-})
+const result =
+  yield *
+  db.traversal.traverse({
+    startIds: [ada.id], // one or more start records
+    direction: "outgoing", // "outgoing" | "incoming" | "both"
+    relationshipTypes: ["OWNS", "HAS_TASK"], // optional filter
+    minDepth: 0, // 0 = include start records as hits
+    maxDepth: 2, // hard bound: 0..3
+    limit: 100, // max hits
+    includePaths: true, // per-hit provenance paths
+  });
 
 // result.hits: [{ record: CheguersRecord, depth: number }, ...]
 // result.paths (when includePaths: true): parallel array of
 //   [{ sourceId, targetId, type }, ...] per hit
 ```
 
-Defaults: `minDepth: 1` (start records are *not* hits unless `minDepth <= 0`),
+Defaults: `minDepth: 1` (start records are _not_ hits unless `minDepth <= 0`),
 `direction: "outgoing"`. Visited-set bookkeeping means cycles cannot loop
 forever and each record is reported once, at its shallowest depth.
 
@@ -377,13 +389,14 @@ carry multiple vectors under different namespaces. The default namespace is
 `"default"`.
 
 ```ts
-yield* db.vectors.upsert({
-  recordId: ada.id,
-  namespace: "skills",        // optional, defaults to "default"
-  vector: [0.9, 0.8, 0.1]
-})
+yield *
+  db.vectors.upsert({
+    recordId: ada.id,
+    namespace: "skills", // optional, defaults to "default"
+    vector: [0.9, 0.8, 0.1],
+  });
 
-const meta = yield* db.vectors.get(ada.id, "skills")
+const meta = yield * db.vectors.get(ada.id, "skills");
 // { recordId, namespace: "skills", dimensions: 3, updatedAt }
 ```
 
@@ -398,15 +411,17 @@ Rules enforced on write:
 ### Exact similarity search
 
 ```ts
-const hits = yield* db.vectors.search({
-  namespace: "skills",
-  vector: [0.9, 0.8, 0.1],
-  metric: "cosine",            // or "l2"
-  topK: 5,
-  maxDistance: 0.5,            // optional exclusive upper bound
-  labels: ["Person"],          // optional: pre-filter by label
-  where: { property: "active", op: "eq", value: true }  // optional pre-filter
-})
+const hits =
+  yield *
+  db.vectors.search({
+    namespace: "skills",
+    vector: [0.9, 0.8, 0.1],
+    metric: "cosine", // or "l2"
+    topK: 5,
+    maxDistance: 0.5, // optional exclusive upper bound
+    labels: ["Person"], // optional: pre-filter by label
+    where: { property: "active", op: "eq", value: true }, // optional pre-filter
+  });
 
 // hits: [{ record: CheguersRecord, distance: number }, ...]
 // distance: cosine distance (1 - similarity) or L2 distance
@@ -428,15 +443,17 @@ Restrict the seed set with labels/properties first, then rank by vector
 similarity. Set `expandDepth: 0` to disable expansion:
 
 ```ts
-const hits = yield* db.hybrid.search({
-  vector: [0.9, 0.8, 0.1],
-  metric: "cosine",
-  labels: ["Person"],
-  where: { property: "role", op: "eq", value: "engineer" },
-  seeds: 10,          // size of the vector seed set (default 10)
-  expandDepth: 0,
-  topN: 5
-})
+const hits =
+  yield *
+  db.hybrid.search({
+    vector: [0.9, 0.8, 0.1],
+    metric: "cosine",
+    labels: ["Person"],
+    where: { property: "role", op: "eq", value: "engineer" },
+    seeds: 10, // size of the vector seed set (default 10)
+    expandDepth: 0,
+    topN: 5,
+  });
 ```
 
 ### Mode B — vector → graph → rerank
@@ -445,18 +462,20 @@ Take the vector top-k seeds, expand through the graph, aggregate candidates,
 and rerank deterministically:
 
 ```ts
-const hits = yield* db.hybrid.search({
-  vector: [0.9, 0.8, 0.1],
-  metric: "cosine",
-  seeds: 10,                                   // vector top-k
-  expandDepth: 2,                              // graph hops (0..3)
-  direction: "outgoing",
-  relationshipTypes: ["OWNS", "HAS_TASK"],
-  relationWeights: { OWNS: 2, HAS_TASK: 1 },   // optional per-type weight
-  weights: { vector: 0.7, proximity: 0.2, frequency: 0.1 }, // optional
-  topN: 10,
-  includeProvenance: true
-})
+const hits =
+  yield *
+  db.hybrid.search({
+    vector: [0.9, 0.8, 0.1],
+    metric: "cosine",
+    seeds: 10, // vector top-k
+    expandDepth: 2, // graph hops (0..3)
+    direction: "outgoing",
+    relationshipTypes: ["OWNS", "HAS_TASK"],
+    relationWeights: { OWNS: 2, HAS_TASK: 1 }, // optional per-type weight
+    weights: { vector: 0.7, proximity: 0.2, frequency: 0.1 }, // optional
+    topN: 10,
+    includeProvenance: true,
+  });
 
 // hits: [{ record, score, provenance? }, ...] ordered by descending score
 // provenance (when includeProvenance: true):
@@ -479,43 +498,48 @@ underlying Turso transaction. If the body fails, everything rolls back — no
 partial state is ever visible.
 
 ```ts
-const result = yield* db.transaction((ops) =>
-  Effect.gen(function* () {
-    const post = yield* ops.records.create({
-      data: { title: "hello" },
-      labels: ["Post"]
-    })
-    const author = yield* ops.records.create({ data: { name: "ada" } })
-    yield* ops.relationships.create({
-      type: "WRITTEN_BY",
-      sourceId: post.id,
-      targetId: author.id
-    })
-    yield* ops.vectors.upsert({ recordId: post.id, vector: [1, 2, 3] })
-    return post.id
-  })
-)
+const result =
+  yield *
+  db.transaction((ops) =>
+    Effect.gen(function* () {
+      const post = yield* ops.records.create({
+        data: { title: "hello" },
+        labels: ["Post"],
+      });
+      const author = yield* ops.records.create({ data: { name: "ada" } });
+      yield* ops.relationships.create({
+        type: "WRITTEN_BY",
+        sourceId: post.id,
+        targetId: author.id,
+      });
+      yield* ops.vectors.upsert({ recordId: post.id, vector: [1, 2, 3] });
+      return post.id;
+    }),
+  );
 ```
 
 Scope operations:
 
-| Scope | Operations |
-| --- | --- |
-| `ops.records` | `create`, `update`, `delete` |
-| `ops.relationships` | `create`, `remove` |
-| `ops.vectors` | `upsert`, `remove` |
+| Scope               | Operations                   |
+| ------------------- | ---------------------------- |
+| `ops.records`       | `create`, `update`, `delete` |
+| `ops.relationships` | `create`, `remove`           |
+| `ops.vectors`       | `upsert`, `remove`           |
 
 Any failure inside the body (validation error, missing record, ...) aborts and
 rolls back every mutation made so far:
 
 ```ts
 // Nothing below persists — the create is rolled back when the lookup fails
-yield* db.transaction((ops) =>
-  Effect.gen(function* () {
-    yield* ops.records.create({ data: { x: 1 } })
-    return yield* ops.records.get("rec_does_not_exist_0000000001") // NotFoundError
-  })
-).pipe(Effect.ignore)
+yield *
+  db
+    .transaction((ops) =>
+      Effect.gen(function* () {
+        yield* ops.records.create({ data: { x: 1 } });
+        return yield* ops.records.get("rec_does_not_exist_0000000001"); // NotFoundError
+      }),
+    )
+    .pipe(Effect.ignore);
 ```
 
 ---
@@ -527,21 +551,26 @@ through the same tx-scoped mutation path, all inside one atomic transaction,
 aborting on the first failure with no partial state.
 
 ```ts
-const created = yield* db.bulk.createRecords([
-  { data: { name: "B1" }, labels: ["Bulk"] },
-  { data: { name: "B2" }, labels: ["Bulk"] }
-])
+const created =
+  yield *
+  db.bulk.createRecords([
+    { data: { name: "B1" }, labels: ["Bulk"] },
+    { data: { name: "B2" }, labels: ["Bulk"] },
+  ]);
 
-const rels = yield* db.bulk.createRelationships([
-  { type: "KNOWS", sourceId: created[0].id, targetId: created[1].id }
-])
+const rels =
+  yield *
+  db.bulk.createRelationships([
+    { type: "KNOWS", sourceId: created[0].id, targetId: created[1].id },
+  ]);
 
-yield* db.bulk.upsertVectors([
-  { recordId: created[0].id, namespace: "bulk", vector: [1, 0] },
-  { recordId: created[1].id, namespace: "bulk", vector: [0, 1] }
-])
+yield *
+  db.bulk.upsertVectors([
+    { recordId: created[0].id, namespace: "bulk", vector: [1, 0] },
+    { recordId: created[1].id, namespace: "bulk", vector: [0, 1] },
+  ]);
 
-const { deleted } = yield* db.bulk.deleteRecords([created[0].id, created[1].id])
+const { deleted } = yield * db.bulk.deleteRecords([created[0].id, created[1].id]);
 ```
 
 ---
@@ -550,22 +579,22 @@ const { deleted } = yield* db.bulk.deleteRecords([created[0].id, created[1].id])
 
 All failures use typed `CheguersError` subclasses (tagged `_tag`):
 
-| Error | `_tag` | Typical cause |
-| --- | --- | --- |
-| `ValidationError` | `ValidationError` | bad input: invalid labels, ops, vectors, missing endpoints |
-| `NotFoundError` | `NotFoundError` | record/relationship/vector ID does not exist |
-| `ConflictError` | `ConflictError` | duplicate explicit record ID |
-| `TransactionError` | `TransactionError` | transaction machinery failure |
-| `DatabaseError` | `DatabaseError` | underlying Turso failure (open, read, write...) |
+| Error              | `_tag`             | Typical cause                                              |
+| ------------------ | ------------------ | ---------------------------------------------------------- |
+| `ValidationError`  | `ValidationError`  | bad input: invalid labels, ops, vectors, missing endpoints |
+| `NotFoundError`    | `NotFoundError`    | record/relationship/vector ID does not exist               |
+| `ConflictError`    | `ConflictError`    | duplicate explicit record ID                               |
+| `TransactionError` | `TransactionError` | transaction machinery failure                              |
+| `DatabaseError`    | `DatabaseError`    | underlying Turso failure (open, read, write...)            |
 
 Pattern-match on `_tag`:
 
 ```ts
-import { Exit } from "effect"
+import { Exit } from "effect";
 
-const exit = await Effect.runPromiseExit(db.records.get("rec_missing"))
+const exit = await Effect.runPromiseExit(db.records.get("rec_missing"));
 if (Exit.isFailure(exit)) {
-  const err = exit.cause.reasons?.[0]?.error
+  const err = exit.cause.reasons?.[0]?.error;
   if (err?._tag === "NotFoundError") {
     // handle missing record
   }
@@ -664,9 +693,9 @@ These invariants hold everywhere; no API can bypass them.
 ```console
 $ pnpm install      # install workspace dependencies
 $ pnpm typecheck    # tsc across all packages
-$ pnpm lint         # eslint
+$ pnpm lint         # oxlint
+$ pnpm fmt          # oxfmt
+$ pnpm fmt:check    # oxfmt (check only)
 $ pnpm test         # vitest: unit + integration + golden + property + differential
 $ pnpm bench        # benchmark harness (graph / vector / hybrid / ingestion)
 ```
-
-
