@@ -1,0 +1,20 @@
+{
+  "name": "@cheguers/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "cheguers": "./src/cli.ts"
+  },
+  "scripts": {
+    "cheguers": "tsx ./src/cli.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@cheguers/core": "workspace:*",
+    "effect": "4.0.0-rc.112"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}
