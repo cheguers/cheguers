@@ -1,0 +1,19 @@
+{
+  "name": "@cheguers/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@tursodatabase/database": "^0.7.2",
+    "effect": "4.0.0-rc.112"
+  },
+  "devDependencies": {
+    "fast-check": "^4.9.0"
+  }
+}
