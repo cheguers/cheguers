@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/*.tsbuildinfo",
+    "pnpm-lock.yaml",
+    "tools/oxlint/anti-slop/**"
+  ],
+  "sortPackageJson": {}
+}

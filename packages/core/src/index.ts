@@ -1,8 +1,5 @@
-export { open } from "./cheguersdb.js"
-export type {
-  CheguersDBHandle,
-  CheguersDBShape
-} from "./cheguersdb.js"
+export { open } from "./cheguersdb.js";
+export type { CheguersDBHandle, CheguersDBApi } from "./cheguersdb.js";
 
 export type {
   CheguersRecord,
@@ -16,37 +13,39 @@ export type {
   JsonValue,
   UpdateRecordInput,
   UpsertVectorInput,
-  VectorMetric
-} from "./domain/model.js"
-export type { VectorSearchHit } from "./domain/model.js"
+  VectorMetric,
+} from "./domain/model.js";
+export type { VectorSearchHit } from "./domain/model.js";
 export type {
   TraversalHit,
   TraversalPathStep,
   TraversalResult,
-  TraversalShape,
-  TraversalSpec
-} from "./relationships/traversal.js"
+  TraversalApi,
+  TraversalSpec,
+} from "./relationships/traversal.js";
 export type {
   HybridHit,
   HybridProvenance,
   HybridQuery,
   HybridRerankWeights,
-  HybridShape,
-  RelationWeights
-} from "./hybrid/service.js"
-export type { VectorSearchInput, VectorShape } from "./vector/service.js"
-export type {
-  BulkDeleteResult,
-  BulkShape,
-  TransactionScope
-} from "./transactions/service.js"
-export type {
-  RecordId,
-  RelationshipId,
-  LabelName,
-  RelationshipType
-} from "./domain/ids.js"
-export { generateRecordId } from "./domain/ids.js"
+  HybridApi,
+  RelationWeights,
+} from "./hybrid/service.js";
+export type { VectorSearchInput, VectorApi } from "./vector/service.js";
+export type { BulkDeleteResult, BulkApi, TransactionScope } from "./transactions/service.js";
+export type { RecordId, RelationshipId, LabelName, RelationshipType } from "./domain/ids.js";
+export { generateRecordId } from "./domain/ids.js";
+
+export {
+  isBooleanValue,
+  isJsonArray,
+  isNumberValue,
+  isPlainObject,
+  isStringValue,
+  parseFiniteNumber,
+  parseJsonObject,
+  parseJsonValue,
+} from "./json/runtime.js";
 
 export type {
   ComparisonOperator,
@@ -56,17 +55,11 @@ export type {
   RecordQuery,
   RelatedSpec,
   StringOperator,
-  WhereExpression
-} from "./query/types.js"
+  WhereExpression,
+} from "./query/types.js";
 
-export type {
-  ImportOptions,
-  ImportResult
-} from "./import/service.js"
-export type {
-  ImportRecordSpec,
-  NormalizedImport
-} from "./import/normalizer.js"
+export type { ImportOptions, ImportResult } from "./import/service.js";
+export type { ImportRecordSpec, NormalizedImport } from "./import/normalizer.js";
 
 export type {
   CheguersError,
@@ -74,5 +67,5 @@ export type {
   DatabaseError,
   NotFoundError,
   TransactionError,
-  ValidationError
-} from "./errors.js"
+  ValidationError,
+} from "./errors.js";
