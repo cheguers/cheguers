@@ -517,9 +517,12 @@ export const traverseCteInTx = (
         LIMIT ${MAX_CTE_ROWS}`;
     }
 
-    // Parameter order follows SQL text order: start ids first, then the type
-    // parameters of the single dirs CTE definition.
-    const allParams: Array<unknown> = [...baseParams, ...armParams];
+    // Parameter order must follow SQL text order. The recursive form declares
+    // dirs (type parameters) before trav (start ids); the unrolled form
+    // declares l0 (start ids) before dirs.
+    const allParams: Array<unknown> = capabilities.recursiveCte
+      ? [...armParams, ...baseParams]
+      : [...baseParams, ...armParams];
     const rows = yield* Effect.tryPromise({
       try: () => sqlRowsFrom(tx.all(traversalSql, ...allParams)),
       catch: (cause): CheguersError =>
