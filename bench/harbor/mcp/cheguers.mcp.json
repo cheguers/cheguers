@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "memory": {
+      "type": "http",
+      "url": "http://cheguers:8765/mcp"
+    }
+  }
+}

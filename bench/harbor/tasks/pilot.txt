@@ -1,0 +1,11 @@
+# Pilot task set (CPU-only). One task name per line; '#' starts a comment.
+# Memory/retrieval candidates
+ontology-kg-querying
+telecom-entity-resolution
+medical-claims-processing
+heat-pump-warranty
+legacy-utility-triage
+intrastat-meldung
+# Neutral controls (memory should not matter)
+interleaved-vigenere
+coq-block-bound

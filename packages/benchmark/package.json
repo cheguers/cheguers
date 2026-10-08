@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "bench": "tsx ./src/run.ts",
-    "typecheck": "tsc -p tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json",
+    "bench:memory": "tsx ./src/memory.ts"
   },
   "dependencies": {
     "@cheguers/core": "workspace:*",
+    "@cheguers/mcp": "workspace:*",
     "@tursodatabase/database": "^0.7.2",
     "effect": "4.0.0-rc.112"
   }
