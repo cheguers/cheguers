@@ -1,0 +1,25 @@
+{
+  "name": "@cheguers/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "cheguers-mcp": "./src/main.ts"
+  },
+  "scripts": {
+    "start": "tsx ./src/main.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@cheguers/core": "workspace:*",
+    "@effect/platform-node": "4.0.0-rc.112",
+    "@huggingface/transformers": "^3.7.0",
+    "effect": "4.0.0-rc.112"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}

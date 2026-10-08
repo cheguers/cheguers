@@ -11,6 +11,8 @@ See [docs/plan.md](docs/plan.md) for the full architecture and roadmap and
 - `packages/core` — embedded database core (`@cheguers/core`)
 - `packages/cli` — thin JSON CLI over the core (`@cheguers/cli`)
 - `packages/benchmark` — benchmark harness for optimization decisions
+- `packages/mcp` — MCP memory server (`@cheguers/mcp`): CheguersDB exposed to coding
+  agents as task memory over Streamable HTTP; sidecar for Terminal-Bench runs
 
 ## CLI
 
@@ -29,6 +31,30 @@ $ cheguers hybrid demo.db --vector 0.9,0.8,0.1 --namespace skills --seeds 2 --ex
 $ cheguers schema demo.db
 $ cheguers stats  demo.db
 ```
+
+## MCP memory server
+
+`packages/mcp` serves seven tools (`memory_store`, `memory_ingest`,
+`memory_search`, `memory_get`, `memory_link`, `memory_neighbors`,
+`memory_stats`) at `http://<host>:8765/mcp`, plus `GET /health`.
+
+```console
+$ CHEGUERS_EMBEDDER=hash pnpm --filter @cheguers/mcp start     # no model download
+$ docker build -f packages/mcp/Dockerfile -t cheguers-mcp .     # bakes the local model
+```
+
+| Variable                                                        | Default                           | Meaning                                                                    |
+| --------------------------------------------------------------- | --------------------------------- | -------------------------------------------------------------------------- |
+| `CHEGUERS_BACKEND`                                              | `cheguers`                        | `cheguers` (hybrid), `vector-only`, `notes` (BM25 control)                 |
+| `CHEGUERS_DB_PATH`                                              | `./cheguers-memory.db`            | database file                                                              |
+| `CHEGUERS_EMBEDDER`                                             | `transformers`                    | `transformers` (local ONNX), `openai` (any compatible API), `hash` (tests) |
+| `CHEGUERS_EMBED_MODEL` / `CHEGUERS_EMBED_DIMENSIONS`            | `Xenova/all-MiniLM-L6-v2` / `384` | embedding model                                                            |
+| `CHEGUERS_EMBED_OFFLINE`, `CHEGUERS_EMBED_CACHE_DIR`            | `false`, unset                    | use a pre-downloaded model only                                            |
+| `CHEGUERS_EMBED_BASE_URL`, `OPENAI_API_KEY`                     | OpenAI                            | for `CHEGUERS_EMBEDDER=openai`                                             |
+| `CHEGUERS_MCP_HOST` / `CHEGUERS_MCP_PORT` / `CHEGUERS_MCP_PATH` | `0.0.0.0` / `8765` / `/mcp`       | listener                                                                   |
+| `CHEGUERS_TELEMETRY_DIR`, `CHEGUERS_RUN_ID`                     | unset                             | JSONL telemetry: one line per tool call + summary                          |
+
+Terminal-Bench harness (arms, compose overlay, analysis): [bench/harbor](bench/harbor/README.md).
 
 ## Quick start
 
@@ -181,6 +207,8 @@ pnpm fmt:check   # oxfmt (check only)
 pnpm typecheck   # clean tsc across all packages
 pnpm test        # vitest unit + property + integration tests against a real Turso file DB
 pnpm bench       # benchmark harness (packages/benchmark)
+pnpm bench:realistic  # core benchmark at 10k records, 384-dim vectors
+pnpm bench:memory     # MCP memory layer: ingest + search at 20k chunks
 ```
 
 ## Status vs plan phases
