@@ -9,7 +9,8 @@
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
     "test": "vitest run",
-    "bench": "pnpm --filter @cheguers/benchmark bench"
+    "bench": "pnpm --filter @cheguers/benchmark bench",
+    "bench:sweep": "pnpm --filter @cheguers/benchmark bench:sweep"
   },
   "devDependencies": {
     "@oxlint/plugins": "1.81.0",

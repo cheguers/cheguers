@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "bench": "tsx ./src/run.ts",
+    "bench:sweep": "tsx ./src/sweep.ts",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

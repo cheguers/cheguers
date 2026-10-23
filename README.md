@@ -181,6 +181,7 @@ pnpm fmt:check   # oxfmt (check only)
 pnpm typecheck   # clean tsc across all packages
 pnpm test        # vitest unit + property + integration tests against a real Turso file DB
 pnpm bench       # benchmark harness (packages/benchmark)
+pnpm bench:sweep # repeated runs over a config matrix + markdown summary
 ```
 
 ## Status vs plan phases

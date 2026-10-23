@@ -74,7 +74,7 @@ const main = Effect.gen(function* () {
 
   const bulkLatenciesMs: Array<number> = [];
   const batchSize = 25;
-  for (let batch = 0; batch < Math.max(1, Math.floor(measuredRuns / batchSize)); batch++) {
+  for (let batch = 0; batch < measuredRuns; batch++) {
     const inputs = Array.from({ length: batchSize }, (_, k) => ({
       id: `rec_bulk_${batch}_${k}`.padEnd(14, "_"),
       data: { n: 1000 + batch * batchSize + k },
