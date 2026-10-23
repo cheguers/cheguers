@@ -1,0 +1,7 @@
+hypothesis,comparison,stratum,mean_diff,p_perm,p_holm,scenarios
+H1,cheguers-full - files,hop2,-0.110,1.0000,1.0000,6
+H1,cheguers-full - files,hop3,-0.236,0.9394,1.0000,6
+H1,cheguers-full - files,filter,-0.111,1.0000,1.0000,6
+H2,cheguers-full - cheguers-vector,hop2,0.611,0.0149,0.0894,6
+H2,cheguers-full - cheguers-vector,hop3,0.422,0.0318,0.1590,6
+H3,cheguers-full - files,hop0,0.056,0.5003,1.0000,6

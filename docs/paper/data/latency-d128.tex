@@ -1,0 +1,22 @@
+\begin{tabular}{lrrrrr}
+\toprule
+\multicolumn{1}{l}{} & \multicolumn{2}{c}{$N=\num{2500}$} & \multicolumn{3}{c}{$N=\num{10000}$} \\ \cmidrule(lr){2-3}\cmidrule(lr){4-6}
+Scenario & p50 & p95 & p50 & p95 & p99 \\
+\midrule
+Traverse 1 hop & 1.10 & 1.20 & 1.25 & 1.57 & 1.70 \\
+Traverse 2 hops & 1.38 & 1.53 & 1.55 & 1.92 & 2.18 \\
+Traverse 3 hops & 1.61 & 1.74 & 1.83 & 2.26 & 2.48 \\
+Traverse 2 hops (hub start) & 1.45 & 1.57 & 1.54 & 1.79 & 3.85 \\
+Traverse 2 hops (chain start) & 0.87 & 1.09 & 1.02 & 1.17 & 1.31 \\
+Traverse 2 hops (recursive CTE) & 4.16 & 4.30 & 10.90 & 11.42 & 14.31 \\
+Traverse 3 hops (recursive CTE) & 8.10 & 9.04 & 23.91 & 27.79 & 28.72 \\
+Vector cosine top-10 & 8.03 & 8.80 & 33.95 & 39.57 & 43.26 \\
+Vector L2 top-10 & 7.69 & 8.51 & 32.08 & 35.44 & 36.60 \\
+Vector cosine top-10 (label filter) & 10.11 & 11.65 & 41.40 & 44.71 & 45.18 \\
+Vector cosine top-100 & 9.37 & 10.52 & 34.78 & 36.91 & 39.13 \\
+Vector cosine top-10 ($d=512$) & 11.49 & 14.80 & 72.88 & 395.24 & 493.27 \\
+Hybrid Mode A (filter $\to$ vector) & 10.58 & 11.61 & 42.01 & 45.96 & 47.18 \\
+Hybrid Mode B (2-hop expansion) & 10.44 & 11.56 & 38.97 & 85.98 & 534.55 \\
+Hybrid Mode B (3-hop expansion) & 11.60 & 15.21 & 42.39 & 175.84 & 398.79 \\
+\bottomrule
+\end{tabular}
