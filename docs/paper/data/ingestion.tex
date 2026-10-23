@@ -1,0 +1,14 @@
+\begin{tabular}{lrrr}
+\toprule
+Metric & $N{=}\num{2500}$, $d{=}128$ & $N{=}\num{10000}$, $d{=}128$ & $N{=}\num{10000}$, $d{=}384$ \\
+\midrule
+Single create p50 (ms) & 0.13 & 0.13 & 0.14 \\
+Records/s (single) & 7636 & 7918 & 7302 \\
+Records/s (bulk of 25) & 14507 & 15203 & 13596 \\
+Relationships/s (bulk of 50) & 4236 & 3963 & 4049 \\
+Database file (MB) & 13.0 & 51.7 & 107.3 \\
+Raw vector bytes (MB) & 6.4 & 25.6 & 76.8 \\
+File / raw vectors & 2.0 & 2.0 & 1.4 \\
+Process RSS at end (GB) & 1.70 & 2.00 & 2.29 \\
+\bottomrule
+\end{tabular}

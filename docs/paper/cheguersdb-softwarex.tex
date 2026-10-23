@@ -1,196 +1,484 @@
-%% CheguersDB — SoftwareX Original Software Publication
-%% Built on Elsevier's elsarticle template (softwarex-osp-template.tex)
-
 \documentclass[preprint,12pt,a4paper]{elsarticle}
 
-\usepackage{amssymb}
-\usepackage{hyperref}
-\usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,fit,backgrounds}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{newtxtext}
+\usepackage{newtxmath}
+\usepackage[varqu,varl,scaled=0.95]{zi4}
+\usepackage[final]{microtype}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{siunitx}
 \usepackage{listings}
-\setlength{\parindent}{0pt}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\pgfplotsset{compat=1.18}
+\usepackage[hidelinks]{hyperref}
+\usepackage[capitalise,nameinlink]{cleveref}
 
-% Visible marker for values the author must supply from a real benchmark run.
-\newcommand{\PLACEHOLDER}[1]{\textbf{[#1]}}
+\sisetup{group-separator={\,},group-minimum-digits=4}
 
+\newcommand{\code}[1]{\texttt{#1}}
+
+\definecolor{seriesA}{HTML}{2A78D6}
+\definecolor{seriesB}{HTML}{EB6834}
+\definecolor{seriesC}{HTML}{1BAF7A}
+\definecolor{seriesD}{HTML}{6250D6}
+\definecolor{inkMuted}{HTML}{6B6A64}
+
+\lstdefinelanguage{TypeScript}{
+  keywords={const,let,yield,function,return,import,from,await,async,true,false,new},
+  sensitive=true,
+  comment=[l]{//},
+  string=[b]",
+  morestring=[b]'
+}
 \lstset{
-  basicstyle=\ttfamily\small,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\bfseries,
+  commentstyle=\color{inkMuted},
   breaklines=true,
-  frame=single,
+  frame=lines,
   columns=fullflexible,
   keepspaces=true,
-  showstringspaces=false
+  showstringspaces=false,
+  upquote=true
 }
 
 \journal{SoftwareX}
 
 \begin{document}
-\renewcommand{\labelenumii}{\arabic{enumi}.\arabic{enumii}}
 
 \begin{frontmatter}
 
-\title{CheguersDB: a unified single-node graph--vector storage engine for HybridRAG retrieval}
+\title{CheguersDB: an embedded graph--vector store with deterministic hybrid retrieval, and a controlled agent evaluation of whether it helps}
 
-\author[inteli]{First Author\corref{cor1}}
-\ead{first.author@example.edu}
-\author[inteli]{Second Author}
-\author[inteli]{Third Author}
+\author[inteli]{Rafael Coutinho\corref{cor1}}
+\ead{rafaelcouto111@gmail.com}
+\author[inteli]{Davi Arantes}
+\author[inteli]{Kaleb Isaias}
+\author[inteli]{Jos\'e Romualdo}
 
-\address[inteli]{Instituto de Tecnologia e Lideran\c{c}a (Inteli), Full postal address, City, Country}
+\address[inteli]{Instituto de Tecnologia e Lideran\c{c}a (Inteli), S\~ao Paulo, SP, Brazil}
 
 \cortext[cor1]{Corresponding author.}
 
 \begin{abstract}
-CheguersDB is an open-source storage engine, written in Rust, that unifies
-graph and vector data within a single deterministic execution path for Hybrid
-Retrieval-Augmented Generation (HybridRAG). Production HybridRAG pipelines
-typically compose a separate vector database and graph database, incurring
-synchronization, latency, and consistency costs. CheguersDB instead co-locates
-nodes, edges, and embeddings behind one append-only commit log with
-deterministic crash-replay, a page-based graph store, exact $k$-nearest-neighbour
-retrieval, bounded $k$-hop traversal, and a single hybrid pipeline
-(vector top-$k$ $\rightarrow$ graph expansion $\rightarrow$ rerank). A reproducible
-benchmark harness accompanies the engine. This release validates the single-node,
-recovery-first serving kernel; distributed execution and approximate indexing are
-deliberately deferred.
+Hybrid retrieval-augmented generation (HybridRAG) combines vector similarity search with knowledge-graph traversal, and is usually built by composing a vector database and a graph database in application code. CheguersDB is an open-source, embedded TypeScript library that stores records, labels, typed relationships, JSON properties and embeddings in one Turso database file, and runs a hybrid query (filter-first exact vector search, bounded graph expansion and a fixed weighted rerank) with a deterministic ordering and per-result provenance. We describe the software and characterize its latency on synthetic data (median \SI{39}{ms} for a 2-hop hybrid query over \num{10000} records). We then ask whether the hybrid store helps an AI agent answer relational retrieval questions. In a pre-registered, controlled comparison run inside Terminal-Bench containers with \texttt{claude-haiku-5-5}, four main arms (files only, SQLite, CheguersDB with graph expansion, and CheguersDB vector-only) and two calibration arms answered relational questions over six seeded synthetic corpora in five strata, with three repeats. The files-plus-Python arm scored between \num{0.92} and \num{1.00} F1 on every stratum. CheguersDB with graph expansion scored lower on hop1, hop2, hop3 and filter, and higher on hop0 by a difference that is not significant. Against the vector-only ablation, graph expansion was better on hop2 and hop3, with nominal $p < 0.05$ that did not survive correction across the six pre-registered tests. The vector-only arm mostly exhausted its turn budget on multi-hop questions. Under these conditions the data show no benefit of the hybrid store over a baseline that can read the same data in code. The result does not show that the store is harmful in general.
 \end{abstract}
 
 \begin{keyword}
-graph database \sep vector retrieval \sep retrieval-augmented generation \sep Rust \sep storage engine \sep approximate nearest neighbour
+retrieval-augmented generation \sep graph database \sep vector search \sep hybrid retrieval \sep embedded database \sep agent evaluation \sep TypeScript
 \end{keyword}
 
 \end{frontmatter}
 
-%\linenumbers
-
-\section*{Required Metadata}
-
-\section*{Current code version}
+\section*{Code metadata}
 
 \begin{table}[!h]
-\begin{tabular}{|l|p{6.5cm}|p{6.5cm}|}
+\small
+\begin{tabular}{|l|p{6.2cm}|p{6.2cm}|}
 \hline
-\textbf{Nr.} & \textbf{Code metadata description} & \textbf{Please fill in this column} \\
+\textbf{Nr.} & \textbf{Code metadata description} & \textbf{Metadata} \\
 \hline
-C1 & Current code version & \PLACEHOLDER{v0.x.y — tag the release you submit} \\
+C1 & Current code version & Commit \code{69ca4b2} (no release tag yet) \\
 \hline
-C2 & Permanent GitHub link to code/repository used for this code version & \PLACEHOLDER{https://github.com/<org>/cheguersdb} (GitHub mandatory) \\
+C2 & Permanent link to code/repository used for this code version & \url{https://github.com/cheguers/cheguers} \\
 \hline
-C3 & Legal Code License & \PLACEHOLDER{MIT or Apache-2.0} \\
+C3 & Legal code license & MIT (\code{LICENSE}) \\
 \hline
 C4 & Code versioning system used & git \\
 \hline
-C5 & Software code languages, tools, and services used & Rust, Cargo \\
+C5 & Software code languages, tools, and services used & TypeScript; Node.js; Effect~4.0.0-rc.112; \code{@tursodatabase/database}~0.7.2; pnpm; Vitest; fast-check; Python~3 with \code{fastembed} (evaluation only) \\
 \hline
-C6 & Compilation requirements, operating environments \& dependencies & Rust toolchain $\geq$ \PLACEHOLDER{1.xx}, Cargo; Linux x86-64; dependencies declared in \texttt{Cargo.toml} \\
+C6 & Compilation requirements, operating environments and dependencies & Node.js~24 (tested with 24.13.0 and 24.21.0) on macOS and Linux; dependencies pinned in \code{pnpm-lock.yaml}; evaluation harness under \code{bench/agent-eval} \\
 \hline
-C7 & If available, link to developer documentation/manual & \PLACEHOLDER{repository README.md + docs/} \\
+C7 & Link to developer documentation/manual & \code{README.md} and \code{docs/usage.md} in the repository \\
 \hline
-C8 & Support email for questions & \PLACEHOLDER{corresponding author email} \\
+C8 & Support email for questions & rafaelcouto111@gmail.com \\
 \hline
 \end{tabular}
-\caption{Code metadata (mandatory).}
+\caption{Code metadata.}
 \label{tab:metadata}
 \end{table}
 
-%% ======================================================================
 \section{Motivation and significance}
 \label{sec:motivation}
 
-Retrieval-Augmented Generation (RAG) has become a standard mechanism for
-grounding large language models in external, up-to-date, or domain-specific
-knowledge, improving the factuality and contextual relevance of generated
-answers. Recent work shows that \emph{HybridRAG} --- the combination of
-vector-based semantic retrieval with knowledge-graph-based relational retrieval
---- consistently outperforms either strategy in isolation, both in retrieval
-accuracy and in downstream answer quality~\cite{peng2024graphrag,hybridrag2025}.
-Vector retrieval surfaces semantically similar passages through dense embeddings,
-while graph retrieval enables structured, multi-hop reasoning over explicit
-entities and relationships. Their integration improves contextual grounding and
-reduces hallucination.
+Retrieval-augmented generation (RAG) conditions a language model on passages retrieved from an external corpus~\cite{lewis2020rag}. Dense vector retrieval finds passages that are semantically close to a question but ignores explicit relations between entities. Graph-based variants add those relations, either by building a knowledge graph from the corpus~\cite{edge2024graphrag} or by traversing an existing one~\cite{peng2025graphrag}. HybridRAG combines both; on question answering over financial earnings-call transcripts it has been reported to improve retrieval and answer quality over either approach alone~\cite{sarmah2024hybridrag}. Those reported gains come from systems that compose a vector store and a graph store.
 
-Despite these gains at the application layer, the prevailing way to build
-HybridRAG is to \emph{compose} two specialised systems: a vector database for
-approximate nearest-neighbour (ANN) search and a graph database for traversal,
-stitched together by application logic. This composition is functional but
-costly. It introduces cross-system orchestration, write and synchronization
-overhead, duplicated indexing, split consistency semantics across two stores,
-and additional end-to-end latency. In practice, keeping a graph store and a
-vector store mutually consistent under updates is a recurring source of
-operational complexity.
+Composing two systems has four costs. Each hybrid query pays two client round-trips and orchestration. The two stores have separate commit logs, so an embedding can be visible while the record or relationships it refers to are not. Two services must be deployed, backed up and upgraded. And the order of retrieved context depends on two independently implemented rankers, which makes a RAG answer hard to regression-test.
 
-The central problem this software addresses is therefore not raw ANN throughput,
-which mature vector engines already provide, but the absence of a single engine
-that delivers, \emph{together}: a unified logical model for graph and vector
-data; a low-latency hybrid execution path; coherent consistency across graph and
-vector updates; and crash-recoverable, reproducible retrieval. Existing
-integrated graph--vector engines~\cite{helixdb} demonstrate the value of
-unification, while composed stacks built from a graph database~\cite{neo4j} and a
-vector database~\cite{qdrant,milvus} represent current industry practice. Neither
-simultaneously optimises unified semantics, predictable serving behaviour, and
-operational simplicity.
+Integrated systems exist. HelixDB~\cite{helixdb} is an open-source graph database with native vector search; K\`uzu~\cite{feng2023kuzu} is an embeddable graph database management system; PostgreSQL with pgvector~\cite{pgvector} can combine vector similarity with relational joins. CheguersDB is a library rather than a server. It reuses an embedded SQL engine for durability and specifies its hybrid ranking procedure exactly.
 
-\textbf{What CheguersDB contributes.} CheguersDB is a graph--vector storage
-engine that treats nodes, edges, and embeddings as first-class, co-located data
-under a single deterministic execution path. Its design contributions are: (i) a
-\emph{unified logical model} (node / edge / vector) served by one engine rather
-than two; (ii) a \emph{correctness-first storage contract} based on an
-append-only commit log with deterministic crash-replay, so that hybrid retrieval
-is reproducible and recoverable --- a guarantee that is difficult to provide
-across two independent systems; and (iii) an open, reproducible benchmark harness
-for \emph{hybrid} (rather than isolated) graph--vector workloads, addressing the
-lack of standard benchmarks for this class of system.
+Whether an integrated store improves what an agent \emph{does} with retrieved data is a separate question, and the software literature rarely measures it. The benchmark vectors used for latency are synthetic and say nothing about retrieval quality, so this paper adds the missing evaluation. It is a controlled study of agent answer accuracy, pre-registered before the agent trials ran.
 
-\textbf{Scope of this release (stated explicitly).} The artifact described here
-validates the single-node, recovery-first serving kernel. Vector retrieval uses
-an exact scan; approximate indexing (e.g.\ HNSW~\cite{hnsw}), distributed
-execution, replication, access control, and a cost-based query optimiser are
-deliberately deferred so that the durability and execution contract can be
-isolated and proven first. The architecture is designed to extend toward these
-capabilities (Section~\ref{sec:impact}), and reported targets of
-millisecond-level hybrid latency follow figures published for integrated
-engines~\cite{helixdb,kuzu}; they are motivation, not results of this release.
+This paper contributes:
+\begin{enumerate}
+  \item a description of a single transactional store for records, labels, relationships and named vector namespaces, with a typed API that accepts no raw SQL, and a deterministic hybrid retrieval procedure with provenance (\cref{sec:description});
+  \item a latency characterization of exact search, traversal and hybrid queries on one machine (\cref{sec:characterization});
+  \item a pre-registered agent evaluation with four arms, a seeded synthetic corpus generator with exact gold answers, and an open harness (\cref{sec:design});
+  \item results that do not support the hypothesis that CheguersDB improves multi-hop agent accuracy in this setting, together with the threats and deviations that bound what the result means (\cref{sec:results,sec:discussion}).
+\end{enumerate}
 
-\textbf{How the user uses the software.} A user runs CheguersDB through a
-command-line interface backed by a core library. They create or open a local
-database file, ingest nodes, edges, and node-associated embeddings through a
-typed command model, and then issue three query types --- vector top-$k$,
-bounded $k$-hop traversal, and an end-to-end hybrid query --- obtaining
-deterministic results that survive process restarts via log replay. The bundled
-harness generates seeded synthetic datasets and reports latency, throughput, and
-memory under a controlled protocol.
+\section{Software description}
+\label{sec:description}
 
-%% ---------------------------------------------------------------------------
-%% Declaration of generative AI use (include ONLY if applicable; otherwise delete)
-% \section*{Declaration of generative AI and AI-assisted technologies in the manuscript preparation process}
-% During the preparation of this work the author(s) used [TOOL] in order to [REASON].
-% After using this tool, the author(s) reviewed and edited the content as needed and
-% take(s) full responsibility for the content of the published article.
+\subsection{Software architecture}
 
-\begin{thebibliography}{00}
+CheguersDB is a pnpm workspace with three packages: \code{@cheguers/core} (the library), \code{@cheguers/cli} (a JSON command-line interface over the public API), and \code{@cheguers/benchmark} (the latency harness). The core is written with Effect~\cite{effect}: every operation returns a typed effect whose error channel is one of \code{ValidationError}, \code{NotFoundError}, \code{ConflictError}, \code{DatabaseError} or \code{TransactionError}.
 
-\bibitem{peng2024graphrag} Peng B, et al. Graph retrieval-augmented generation: a survey. arXiv:2408.08921; 2024. \url{https://arxiv.org/abs/2408.08921}.
+\Cref{fig:architecture} shows the layers. Persistence, write-ahead logging and recovery are delegated to Turso~\cite{turso}, an in-process SQL database that reimplements SQLite in Rust. Turso was chosen over a custom storage engine, which an earlier prototype used and which was abandoned, because a durable transactional store is not where the project's value lies.
 
-\bibitem{hybridrag2025} HybridRAG: integrating knowledge graphs and vector retrieval for efficient information extraction. Proc. ACL; 2025.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  font=\footnotesize,
+  box/.style={draw, rounded corners=2pt, align=center, minimum height=7mm, inner sep=3pt},
+  svc/.style={box, minimum width=17mm},
+  >={Stealth[length=2mm]}
+]
+\node[box, minimum width=12.2cm] (api) {Public API \code{open(path)}\quad|\quad CLI (\code{@cheguers/cli})\quad|\quad benchmark harness};
+\node[svc, below=6mm of api.south west, anchor=north west] (rec) {records\\labels};
+\node[svc, right=1.5mm of rec] (rel) {relationships\\traversal};
+\node[svc, right=1.5mm of rel] (qry) {query DSL\\$\to$ AST $\to$ SQL};
+\node[svc, right=1.5mm of qry] (vec) {vectors\\exact top-$k$};
+\node[svc, right=1.5mm of vec] (hyb) {hybrid\\Mode A / B};
+\node[svc, right=1.5mm of hyb] (imp) {import\\schema};
+\node[box, below=6mm of qry.south west, anchor=north west, minimum width=6cm] (ad) {\code{TursoAdapter.transact}: one immediate transaction per call};
+\node[box, below=5mm of ad, minimum width=6cm] (db) {Turso: single database file, WAL, recovery};
+\foreach \n in {rec,rel,qry,vec,hyb,imp} \draw[->] (api.south -| \n.north) -- (\n.north);
+\foreach \n in {rec,rel,qry,vec,hyb,imp} \draw[->] (\n.south) -- (\n.south |- ad.north);
+\draw[->] (ad) -- (db);
+\end{tikzpicture}
+\caption{Layers of CheguersDB. Services share one adapter; Turso owns durability.}
+\label{fig:architecture}
+\end{figure}
 
-\bibitem{helixdb} HelixDB. Hybrid graph--vector database [software]. \url{https://www.helix-db.com} [accessed \PLACEHOLDER{date}].
+The canonical schema has five tables. \code{records} holds a stable public identifier and a JSON body. \code{labels} and \code{record\_labels} attach labels to records. \code{relationships} stores typed directed edges with JSON properties, indexed on source, target, (source, type) and (target, type). \code{vectors} stores one little-endian float32 BLOB per (record, namespace) pair; all vectors in a namespace share one dimension (at most \num{4096}). Internal integer keys never cross the public API, and every user value is passed to SQL as a bound parameter.
 
-\bibitem{neo4j} Neo4j Inc. Neo4j graph database [software]. \url{https://neo4j.com} [accessed \PLACEHOLDER{date}].
+All public operations run inside one Turso transaction opened in immediate mode, so a hybrid query reads one consistent state of records, edges and vectors, and a multi-table write commits completely or not at all.
 
-\bibitem{qdrant} Qdrant. Vector database [software]. \url{https://qdrant.tech} [accessed \PLACEHOLDER{date}].
+\subsection{Software functionalities}
 
-\bibitem{milvus} Milvus: a cloud-native vector database [software]. \url{https://milvus.io} [accessed \PLACEHOLDER{date}].
+\paragraph{Records, relationships and import} Records support create, read, update (shallow JSON merge) and delete; deletion removes the record's labels, vectors and incident relationships in the same transaction. Nested JSON documents can be imported as a tree of child records and relationships in one transaction.
 
-\bibitem{weaviate} Weaviate: open-source vector database [software]. \url{https://weaviate.io} [accessed \PLACEHOLDER{date}].
+\paragraph{Query language} Queries are JSON expressions with comparison, membership, string, existence and Boolean operators, plus related-record predicates of 1--3 hops. They are parsed into a validated abstract syntax tree and compiled to parameterized SQL, with a deterministic tie-breaker.
 
-\bibitem{tigerbeetle} TigerBeetle: a distributed financial accounting database [software]. \url{https://tigerbeetle.com} [accessed \PLACEHOLDER{date}].
+\paragraph{Traversal} Bounded traversal of 0--3 hops is available in two strategies with identical results: breadth-first search over indexed adjacency queries (the default), and a recursive common table expression. Each hit reports its depth and, optionally, its paths.
 
-\bibitem{kuzu} K\`uzu: an embedded property graph database [software]. \url{https://github.com/kuzudb/kuzu} [accessed \PLACEHOLDER{date}].
+\paragraph{Vector search} Search is exact. Label, property and graph predicates are compiled into the SQL that selects candidate rows; a cosine or L2 distance is then computed for each candidate in the host process. Ties are broken by public identifier, and the top $k \le \num{10000}$ are returned.
 
-\bibitem{janusgraph} JanusGraph: distributed graph database [software]. \url{https://janusgraph.org} [accessed \PLACEHOLDER{date}].
+\subsection{Hybrid retrieval}
+\label{sec:hybrid}
 
-\bibitem{hnsw} Malkov YA, Yashunin DA. Efficient and robust approximate nearest neighbor search using hierarchical navigable small world graphs. IEEE Trans Pattern Anal Mach Intell 2020;42(4):824-36. \url{https://doi.org/10.1109/TPAMI.2018.2889473}.
+A hybrid query $q$ takes a query vector, a metric, a seed count $k$ (default 10), optional filters, an expansion depth $D \in \{0,1,2,3\}$ (default 1), a direction (default both), optional relationship types with per-type weights $w_t \in [0,10]$, rerank weights $(\alpha,\beta,\gamma)$ (default $(0.6, 0.3, 0.1)$, normalized to one) and a result size $n$. \textbf{Mode A} (filter$\to$vector) is the case $D = 0$. \textbf{Mode B} (vector$\to$graph$\to$rerank) uses $D \ge 1$ and follows \cref{alg:hybrid}.
 
-\end{thebibliography}
+\begin{algorithm}[t]
+\caption{Hybrid retrieval, Mode B (\code{packages/core/src/hybrid/service.ts}).}
+\label{alg:hybrid}
+\small
+\begin{algorithmic}[1]
+\State $S \gets$ filter-first exact top-$k$ for $q$; for each seed $i$, $s_i \gets 1 - d_i/2$ (cosine) or $1/(1+d_i)$ (L2)
+\State record each seed $i$ as a candidate with contribution $s_i$ at depth 0
+\State $F \gets \{(i, \mathrm{seed}_i, \text{factor } 1)\}$
+\For{$\ell = 1, \dots, D$}
+  \State fetch edges incident to the nodes of $F$ in the chosen direction, in batches of 256
+  \For{each state $(i, u, f) \in F$, neighbours $v$ sorted by (internal id, type)}
+    \State skip if $(i, v)$ already expanded at level $\ell$ or \num{50000} states reached
+    \State $f' \gets f \cdot w_{t(u,v)}$; add contribution $s_i\,\delta^{\ell} f'$ for $v$ with $\delta = 0.85$
+    \State keep the first parent of $v$ for its path summary; push $(i, v, f')$ to $F'$
+  \EndFor
+  \State $F \gets F'$
+\EndFor
+\State for each candidate $v$: $b_v$ = best contribution, $m_v$ = minimum depth, $a_v$ = distinct seeds reaching $v$
+\State $\mathrm{score}(v) = \alpha\, b_v + \beta\,\frac{1}{1+m_v} + \gamma \min\!\left(1, \frac{a_v}{|S|}\right)$
+\State \Return top $n$ by score, ties broken by public id, with provenance
+\end{algorithmic}
+\end{algorithm}
+
+For each result, the provenance reports the seed of its best contribution, that contribution's value, the graph depth, the number of seeds that reached it, the final score, and a path summary such as \code{rec\_a --CITES--> rec\_b}. Filters apply to the seeds only; expansion can reach records that do not satisfy them.
+
+\subsection{Correctness strategy}
+
+The repository contains 105 tests in 13 files (Vitest). Compiler golden tests fix the SQL text and parameter order for each query form. Property-based tests with fast-check~\cite{fastcheck,claessen2000quickcheck} exercise the query parser and the nested-JSON normalizer. Following differential testing~\cite{mckeeman1998differential}, tests check that the BFS and recursive-CTE traversal strategies return identical hits, depths and paths, including after the database is closed and reopened. Transaction tests check rollback across all mutation types.
+
+\section{Illustrative example}
+\label{sec:example}
+
+\Cref{lst:example} stores two linked documents with embeddings in one transaction and runs a 1-hop Mode B query with provenance. The CLI exposes the same operation as \code{cheguers hybrid <db> --vector \ldots{} --seeds 2 --expand-depth 1 --provenance}.
+
+\begin{lstlisting}[language=TypeScript, caption={Writing linked records and embeddings atomically, then running a hybrid query.}, label=lst:example]
+const program = Effect.gen(function* () {
+  const db = yield* open("./kb.db");
+  yield* db.transaction((ops) => Effect.gen(function* () {
+    const paper = yield* ops.records.create({ id: "paper-rag-2020",
+      data: { title: "RAG for knowledge-intensive NLP" }, labels: ["Paper"] });
+    const survey = yield* ops.records.create({ id: "survey-graphrag",
+      data: { title: "Graph RAG: a survey" }, labels: ["Paper"] });
+    yield* ops.relationships.create({ type: "CITES",
+      sourceId: survey.id, targetId: paper.id });
+    yield* ops.vectors.upsert({ recordId: paper.id, vector: [0.9, 0.1, 0.0] });
+    yield* ops.vectors.upsert({ recordId: survey.id, vector: [0.2, 0.9, 0.1] });
+  }));
+  const hits = yield* db.hybrid.search({ vector: [0.1, 1.0, 0.0],
+    metric: "cosine", seeds: 1, expandDepth: 1, topN: 5,
+    includeProvenance: true });
+  // hits[1].provenance: { seedId: "survey-graphrag", graphDepth: 1,
+  //   pathCount: 1, pathSummary: "survey-graphrag --CITES--> paper-rag-2020" }
+  yield* db.close;
+  return hits;
+});
+\end{lstlisting}
+
+\section{Latency characterization}
+\label{sec:characterization}
+
+This section measures the performance of the release on its own. It does not measure answer quality; that is the subject of \cref{sec:design,sec:results}.
+
+\paragraph{Protocol} The harness (\code{packages/benchmark/src/run.ts}) creates a fresh database, generates a synthetic dataset from a linear congruential generator with seed 42, and measures each scenario with 5 discarded warm-up executions followed by 50 measured executions, one at a time in one process. The graph is a chain $r_i \to r_{i+1}$ plus 24 edges from $r_0$ to $r_1,\dots,r_{24}$. Each record has a vector in namespace \code{default} (dimension $d$) and in namespace \code{wide} (dimension $4d$). Percentiles use the nearest-rank method, so with 50 samples p95 is the third-largest and p99 the largest observation. Following~\cite{hoefler2015benchmarking} we report medians as the main statistic and treat tails, which rest on one to three observations, as indicative only. Runs used commit \code{69ca4b2} on an Apple M5 (10 cores, \SI{16}{GB} RAM, macOS) with Node.js 24.13.0, at $N \in \{\num{2500}, \num{10000}\}$ records with $d = 128$, at $N = \num{10000}$ with $d = 384$ (ingestion), and one exact search at $N = \num{10000}$ with $d = 512$.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\caption{Latency in ms at $d = 128$, except the row marked $d = 512$. Hub start is record $r_0$; chain start is the middle of the chain. Mode A uses a label filter that matches every record; Mode B has no filter and expands in both directions.}
+\label{tab:latency}
+\input{data/latency-d128.tex}
+\end{table}
+
+\begin{table}[t]
+\centering
+\footnotesize
+\caption{Ingestion throughput and footprint. Raw vector bytes count both namespaces ($d$ and $4d$) at 4 bytes per component. RSS is the resident set size of the whole benchmark process at the end of the run.}
+\label{tab:ingestion}
+\input{data/ingestion.tex}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{loglogaxis}[
+  width=0.78\linewidth, height=6.2cm,
+  xmin=2000, xmax=19000,
+  ymin=0.8, ymax=80,
+  xtick={2500,10000}, xticklabels={\num{2500},\num{10000}},
+  xlabel={Records $N$}, ylabel={p50 latency (ms)},
+  axis line style={inkMuted}, tick style={inkMuted},
+  ymajorgrids, grid style={inkMuted!25},
+  every axis plot/.append style={line width=1pt, mark size=2.2pt},
+  clip=false,
+  font=\footnotesize,
+  legend style={draw=none, fill=none, at={(0.02,0.98)}, anchor=north west, font=\scriptsize},
+  legend cell align=left
+]
+\addplot[inkMuted, dashed, thin, mark=none, forget plot] coordinates {(2500,8.03) (10000,32.12)};
+\addplot[seriesA, mark=*] table[col sep=comma, x=records, y=vector]{data/scaling.csv}
+  node[pos=1, right, text=black, font=\scriptsize]{exact cosine top-10};
+\addplot[seriesB, mark=square*] table[col sep=comma, x=records, y=modeb2]{data/scaling.csv}
+  node[pos=1, right, yshift=5pt, text=black, font=\scriptsize]{hybrid Mode B, 2 hops};
+\addplot[seriesC, mark=triangle*] table[col sep=comma, x=records, y=cte3]{data/scaling.csv}
+  node[pos=1, right, text=black, font=\scriptsize]{recursive CTE, 3 hops};
+\addplot[seriesD, mark=diamond*] table[col sep=comma, x=records, y=bfs3]{data/scaling.csv}
+  node[pos=1, right, text=black, font=\scriptsize]{BFS, 3 hops};
+\legend{exact cosine top-10, hybrid Mode B (2 hops), recursive CTE (3 hops), BFS (3 hops)}
+\end{loglogaxis}
+\end{tikzpicture}
+\caption{Median latency against corpus size ($d = 128$, log--log). The dashed line has slope one (cost proportional to $N$) through the 2.5K exact-search point.}
+\label{fig:scaling}
+\end{figure}
+
+\paragraph{Results} \Cref{tab:latency,tab:ingestion} and \cref{fig:scaling} summarize the measurements.
+\begin{enumerate}
+  \item \emph{The exact vector scan dominates.} Multiplying $N$ by 4 multiplies the median exact-search latency by 4.2 (\SI{8.03}{} to \SI{33.95}{ms}), consistent with an $O(N)$ scan. Switching to L2 lowers the median by 4--6\%, and raising $k$ from 10 to 100 raises it by 2--17\%.
+  \item \emph{Graph expansion adds little to a hybrid query.} The median of a 2-hop Mode B query exceeds that of plain exact search by \SI{2.4}{ms} at \num{2500} records and by \SI{5.0}{ms} at \num{10000}. These are differences between separately measured scenarios, not per-stage timings.
+  \item \emph{BFS should remain the default traversal.} At \num{10000} records BFS is 7.0$\times$ faster than the recursive CTE at 2 hops and 13.1$\times$ faster at 3 hops.
+  \item \emph{An unselective filter is pure overhead.} The label filter in the benchmark matches every record, so filtered search is \SIrange{2}{7.5}{ms} slower than unfiltered search; the gain from selective filter-first execution is not measured here.
+  \item \emph{Ingestion and storage.} Single-record creates sustain between \num{7300} and \num{7900} records/s, and batches of 25 between \num{13600} and \num{15200} records/s (across the three configurations in \cref{tab:ingestion}). The database file is $2.0\times$ the raw vector bytes at $d = 128$ and $1.4\times$ at $d = 384$.
+\end{enumerate}
+
+\paragraph{Threats to validity} The vectors are synthetic and carry no semantic structure, so these results concern cost, not quality. The graph is a chain with one 24-edge hub, so traversal frontiers stay small regardless of $N$. Each configuration was run once, so run-to-run variation is not quantified. Bulk ingestion throughput is computed from two batches of 25 records. Isolated tail values above \SI{390}{ms} are single observations whose cause has not been investigated. Process RSS includes the Node.js runtime and the native Turso library. All results come from one machine and one operating system.
+
+\section{Agent evaluation: design}
+\label{sec:design}
+
+\subsection{Question and hypotheses}
+
+The question is whether an AI agent that answers relational retrieval questions with CheguersDB is more accurate than an agent with no database, or with a plain relational store. The study is pre-registered (\code{bench/agent-eval/spec/PREREG.md}), and deviations from that document are listed in \cref{sec:threats}. Hypotheses:
+\begin{description}
+  \item[H1] \code{cheguers-full} has higher mean F1 than \code{files} on the hop2, hop3 and filter strata.
+  \item[H2] \code{cheguers-full} has higher mean F1 than \code{cheguers-vector} on hop2 and hop3, and no difference on hop0 and hop1.
+  \item[H3] \code{cheguers-full} is no lower than \code{files} on hop0 (mandatory use adds no accuracy cost on lookups).
+\end{description}
+Tests are one-sided at $\alpha = 0.05$, with Holm correction~\cite{holm1979} across the six pre-registered comparisons. Repeats are averaged within each scenario before testing, as the pre-registration specifies. The hypothesis that H2 holds on hop0 and hop1 was not tested in a separate comparison; those strata are reported in \cref{tab:f1}.
+
+\subsection{Arms}
+
+All arms run the same model, the same corpus, the same question text, the same embedding function and the same turn budget. The agent is Claude Code running \code{claude-haiku-5-5} through a subscription token, inside a Terminal-Bench~\cite{merrill2026terminalbench} task container.
+
+\begin{description}
+  \item[files] The corpus as one JSON Lines file, the embedding helper and an unrestricted shell with Python and grep. No database.
+  \item[sqlite3] The same records, edges and vectors loaded into SQLite tables. The agent must answer from that database, through the Python \code{sqlite3} module; it computes cosine similarity itself.
+  \item[cheguers-full] The \code{cheguers} CLI with the same data loaded through the library bulk API. The prompt makes CLI use mandatory and lists the commands, including \code{hybrid} with expansion depth 1.
+  \item[cheguers-vector] As \code{cheguers-full}, but restricted to \code{vec-search} and \code{hybrid} with expansion depth 0. This ablation isolates graph expansion.
+  \item[closed-book] Calibration floor. The agent receives the questions and no data, and must answer from its own knowledge.
+  \item[gold-context] Calibration ceiling. The agent receives only the records that support each question (the gold supporting records), and no corpus.
+\end{description}
+
+The database arms receive no corpus file. The corpus is loaded into the store at install time and the store is deleted before the agent starts. The files arm receives the corpus as its only data file.
+
+\subsection{Corpus and questions}
+
+A seeded generator (\code{bench/agent-eval/gen/generate.mjs}) builds a corpus of 1,400 papers, 700 authors, 80 organizations and 40 venues: 2,220 records and about 8,500 typed edges (\code{PRESENTED\_AT}, \code{AUTHORED\_BY}, \code{AFFILIATED\_WITH}, \code{CITES}). Each record's text states its relations in prose, so the same facts are available to every arm. About a quarter of papers reuse the topic and setting of an earlier paper, and about 30\% of organization names are near-variants of another name. Questions are paraphrased with synonyms that do not appear in the corpus text, so lexical matching on the question wording does not identify the answer.
+
+Five strata differ by the number of hops from the question's anchor to the answer: hop0 (a paper described by its topic, setting and modifier; the answer is the paper id), hop1 (the paper's venue), hop2 (organizations of the paper's authors), hop3 (organizations of the authors of the papers the paper cites), and filter (venue and affiliation name filters followed by a two-hop traversal). Gold answers are computed from the graph. The hop2 and filter answers are also checked by a second computation over the same edges. The gold file is copied into a task only at scoring time.
+
+A scenario is one seed and one stratum with five questions. Six seeds (1 to 6) give 30 scenarios, so each main arm answers 150 questions per repeat and 450 over three repeats.
+
+\subsection{Scoring and budget}
+
+The primary metric is per-question set-F1 between the agent's answer and the gold set; empty gold sets are not used. Each answer is written to \code{/app/answer.json}. A hidden pytest file computes F1 per question and writes \code{SCORE} lines. Every arm has a 12-turn budget, enforced with the \code{--max-turns} flag of the Claude CLI. A trial that exhausts the budget writes whatever answer it has, so its unanswered questions score zero. Budget exhaustion is therefore counted separately (\cref{tab:failures}) and is a confound for accuracy, not a neutral failure. The budget was chosen from a pilot: at six turns every arm ran out before answering, and at twelve turns files, sqlite3 and \code{cheguers-full} solved the pilot's hardest scenario, while \code{cheguers-vector} still exhausted it.
+
+\subsection{Embedding function and harness}
+
+All arms use all-MiniLM-L6-v2, a sentence-embedding model of the family introduced in~\cite{reimers2019sbert}, through \code{fastembed} 0.9.0 (384 dimensions). Corpus vectors are precomputed on the host and loaded into each database arm; question vectors are computed at run time inside each arm. The model is baked into a base container image, so the embedder is identical in every arm.
+
+Each scenario runs as one Terminal-Bench task with \code{terminal-bench} 0.1.1, one trial per arm per repeat. Before the study, the oracle agent, which writes the gold answers into the answer file, passed all four variants (main, files, gold-context and closed-book) of one task, \code{kb-s1-hop1}. The oracle was not run on the other 116 tasks, which are built by the same script. Concurrency was two containers.
+
+\section{Agent evaluation: results}
+\label{sec:results}
+
+\subsection{Offline retrieval gate}
+
+Before the agent study, a retrieval-only gate asked whether the hybrid procedure surfaces multi-hop answers within the top 20 results, using the same embedder. This is an independent proxy for Algorithm~\ref{alg:hybrid}: it uses raw cosine as the seed contribution and omits the edge-weight factor and the state cap. Expansion is seeded from the top-20 vector hits, so a multi-hop answer must first appear among those seeds. \Cref{tab:gate} reports recall at 20 for two corpus seeds, with 60 questions per stratum for each seed. Expansion at depth 1 changed nothing: hybrid recall equals vector recall in every stratum. Hop0 reaches 0.63 to 0.67, and hop1 to hop3 and filter are at or near zero. The gate's criterion, that hybrid beats vector-only on multi-hop completeness, was not met. The agent study went ahead anyway, because the agent can issue repeated searches and scripts, which the gate does not model.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\caption{Offline retrieval recall at 20 (MiniLM, 60 questions per stratum for each of two seeds, expansion depth 1). Vector is top-20 dense retrieval; hybrid is the proxy procedure with the same seeds.}
+\label{tab:gate}
+\input{data/gate.tex}
+\end{table}
+
+\subsection{Accuracy by stratum}
+
+\Cref{tab:f1} gives mean F1 per main arm and stratum, averaged over three repeats within each scenario, with 95\% bootstrap intervals over the six scenarios (10,000 resamples). It also gives the proportion of questions answered exactly and, for the database arms, the mean number of \code{cheguers} CLI calls per question.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\caption{Mean F1 by main arm and stratum (6 scenarios, three repeats, 5 questions each, 12-turn budget). Bootstrap 95\% intervals are over scenarios. ``Exact'' is the fraction of questions with F1 = 1. ``CLI/q'' is the mean number of \code{cheguers} calls per question.}
+\label{tab:f1}
+\input{data/agent-f1.tex}
+\end{table}
+
+Files scores between 0.92 and 1.00 on every stratum (1.00 on filter). sqlite3 scores between 0.97 and 1.00 on every stratum. cheguers-full is at 1.00 on hop0, 0.87 on hop1, 0.89 on hop2, 0.69 on hop3 and 0.89 on filter. cheguers-vector is at 0.94 on hop0 and 0.79 on hop1, falls to 0.28 on hop2 and 0.26 on hop3, and reaches 0.15 on filter. Across strata, \code{cheguers-full} averages 6.9 to 8.8 CLI calls per question and \code{cheguers-vector} 8.3 to 10.2.
+
+\subsection{Calibration arms}
+
+\Cref{tab:calib} reports the two calibration arms. The closed-book floor scores zero on every stratum, which shows that the questions cannot be answered from the model's own knowledge. The gold-context ceiling scores 0.83 to 1.00 on every stratum, so the questions are answerable from the supporting records alone. Its residual misses (hop1 exact 0.67, hop3 exact 0.83) show that the ceiling is not perfect. They are not caused by missing evidence, because every gold answer is in the supplied records.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\caption{Calibration arms, mean F1 over 6 scenarios with one repeat each. Closed-book receives no data; gold-context receives only the supporting records for each question.}
+\label{tab:calib}
+\input{data/calibration-f1.tex}
+\end{table}
+
+\subsection{Pre-registered comparisons}
+
+\Cref{tab:tests} gives the paired differences in mean F1 by scenario (repeat-averaged), with one-sided sign-flip permutation $p$-values, and Holm-adjusted values across the six comparisons.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\caption{Paired differences in mean F1 (first arm minus second arm), 6 scenarios per comparison, repeat-averaged. $p$ is one-sided, from a paired sign-flip permutation test over scenarios (10,000 permutations); $p_{\mathrm{Holm}}$ adjusts across all six tests.}
+\label{tab:tests}
+\input{data/agent-tests.tex}
+\end{table}
+
+H1 is not supported. Every H1 difference against files is negative: \num{-0.11} on hop2, \num{-0.24} on hop3 and \num{-0.11} on filter, with $p \ge 0.94$. H2 is partly supported before correction. Graph expansion beats the vector-only ablation on hop2 by \num{0.61} ($p = 0.015$ before correction, $p_{\mathrm{Holm}} = 0.089$) and on hop3 by \num{0.42} ($p = 0.032$, $p_{\mathrm{Holm}} = 0.16$). Neither survives correction at $\alpha = 0.05$, so the result is suggestive, not established. H3 holds: on hop0 \code{cheguers-full} scores \num{0.056} higher than \code{files} ($p = 0.50$), so the mandatory CLI adds no accuracy cost on lookups.
+
+\subsection{Budget exhaustion and failures}
+
+\Cref{tab:failures} counts trials that exhausted the 12-turn budget. No trial produced zero scores for any other reason, so every trial contributes to the accuracy figures.
+
+\begin{table}[t]
+\centering
+\footnotesize
+\caption{Turn-budget exhaustion by arm and repeat. ``Budget'' counts trials that stopped at the 12-turn limit. ``No scores'' counts trials that produced no per-question scores for any other reason.}
+\label{tab:failures}
+\input{data/agent-failures.tex}
+\end{table}
+
+Exhaustion is concentrated in the two arms that call the CLI. cheguers-vector ran out in 56 trials over three repeats (18, 17 and 21), and cheguers-full in 31 (8, 12 and 11). The files arm ran out once, and sqlite3 never did.
+
+\section{Discussion}
+\label{sec:discussion}
+
+\paragraph{Why the baseline is strong} The files arm writes a short Python program that loads the corpus file, matches the paraphrased question to a paper by its structured fields, and walks the relations in code. The model performs the paraphrase-to-term mapping, which is the semantic step, and the join is exact. At 2,220 records this is a small computation for one process, so the corpus never forces a retrieval step. The gold-context ceiling shows the questions are answerable from the records alone, and the closed-book floor shows the answers are not guessable.
+
+\paragraph{What the database adds} In this setting the database does not improve accuracy, and it costs more calls. Graph expansion scored higher than vector-only retrieval on hop2 and hop3, where the vector-only arm struggles, and that difference is nominally significant only before correction. The vector-only arm exhausted its budget most often. Part of that gap is therefore a budget effect, not only a retrieval effect, and we cannot separate the two with this design.
+
+\paragraph{What would test the claim} A fair test needs data where the baseline cannot do the join in one pass. Candidates include a corpus too large to load into one agent context or one process, selective filters, documents that do not reduce to a structured file, and a real multi-hop question-answering set with gold supporting facts. Any such test must be pre-registered and must not reuse the present gold data.
+
+\paragraph{Relation to HybridRAG} HybridRAG reports gains on financial earnings transcripts~\cite{sarmah2024hybridrag}, where the relevant text is unstructured and a script cannot join it. Our corpus has explicit relations and structured fields, the condition under which an exact script matches the store. The two results are compatible: the benefit of hybrid retrieval may depend on whether the relevant structure is recoverable without retrieval.
+
+\section{Impact}
+\label{sec:impact}
+
+\paragraph{Reproducible retrieval for RAG} Because the hybrid order is fully specified and every result carries its provenance, an application can store expected contexts for a set of questions and test that a change to data or code does not silently change them.
+
+\paragraph{Embedded memory for agents} The store is a single file inside the application process, so it can serve as persistent memory for local tools without a service to operate. The study here does not show that it improves answers over files for this task.
+
+\paragraph{A research baseline} The harness, generator and gold computation give a reproducible starting point for measuring agents on relational retrieval. The gold answers are computed from the graph rather than written by hand.
+
+\section{Threats to validity and deviations}
+\label{sec:threats}
+
+\paragraph{Power and statistics} Six scenarios per stratum give limited power. The intervals in \cref{tab:f1} are wide, and no comparison survives correction at $\alpha = 0.05$. The results support ``no evidence of benefit under these conditions'' and a suggestive ablation effect, not effect sizes that generalize.
+
+\paragraph{Budget confound} The 12-turn budget was chosen from a pilot. The vector-only arm exhausts it on most multi-hop questions, so its accuracy partly reflects the budget. Accuracy at a different budget could differ. The budget was not varied.
+
+\paragraph{Ceiling} The files arm scores at least 0.92 on every stratum, which leaves little room for a better arm to show improvement.
+
+\paragraph{Synthetic and single-model} The corpus and questions are generated, not drawn from a public dataset. One model, one corpus generator, one scorer and one sentence-embedding model were used. The results may not transfer to other models, corpora or embedders.
+
+\paragraph{Deviations from the pre-registration} The pre-registration (\code{bench/agent-eval/spec/PREREG.md}) lists each deviation in full. In summary: (i) the embedder was not fixed in the draft; a lexical hash embedder was used in the first pilot, and all-MiniLM-L6-v2 replaced it before the reported runs; (ii) the \code{cheguers} CLI has no bulk relationship command, so the loader uses the library bulk API; (iii) a first full run placed the corpus inside the database-arm images, so the database arms could read the relations as text; those runs are archived, excluded from every number here, and the reported runs keep the corpus in the deleted store; (iv) a 12-turn budget was added before the reported runs; (v) the retrieval-only comparisons (BM25, MRR, brute-force cosine) planned in the draft were not implemented, so the retrieval evidence is the top-20 proxy only; (vi) the sqlite3 arm uses the Python \code{sqlite3} module rather than the CLI; (vii) Holm correction is applied across all six tests, which is stricter than the draft scheme; (viii) the \code{cheguers} CLI ignores \code{--direction outgoing}, which was documented and not fixed.
+
+\section{Limitations and roadmap}
+\label{sec:roadmap}
+
+The exact scan grows linearly with corpus size and takes about \SI{34}{ms} at \num{10000} records. The next step is a rebuildable approximate index, with exact search kept as fallback and recall reference. Filters currently constrain only the seeds; applying them at every expansion hop is needed before the library holds multi-tenant data. Every call takes an immediate transaction, so operations are serialized and there is no concurrent read path. Planned work includes a corpus that the baseline cannot load in one pass, selective filters, a public multi-hop question-answering set with gold supporting facts, and the retrieval-only comparisons that were not implemented here.
+
+\section{Conclusions}
+
+CheguersDB fits the parts of a HybridRAG retriever that are usually spread across two databases (records, relationships, embeddings, filters, traversal and ranking) into one embedded library over one transactional file. Its ranking procedure is deterministic and explains each result, and its costs are measured: at 10,000 records, graph traversal takes about 1 to 2 ms, two-hop hybrid expansion about \SI{39}{ms} and an exact vector scan about \SI{34}{ms}, which grows linearly with corpus size.
+
+On a pre-registered, controlled agent evaluation over synthetic relational questions, the hybrid store did not improve answer accuracy over an agent that reads the same data with Python. The baseline is near the ceiling because a small corpus can be joined exactly in one pass. Graph expansion scored higher than vector-only retrieval on the two deepest strata, a suggestive result that does not survive correction. A claim that CheguersDB helps agents requires a setting in which retrieval is needed, which this study did not test.
+
+\section*{CRediT authorship contribution statement}
+
+\textbf{Rafael Coutinho:} Writing -- original draft; Writing -- review \& editing. \textbf{Davi Arantes:} Writing -- original draft; Writing -- review \& editing. \textbf{Kaleb Isaias:} Writing -- original draft; Writing -- review \& editing. \textbf{Jos\'e Romualdo:} Supervision.
+
+\section*{Declaration of competing interest}
+
+The authors declare that they have no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\section*{Data and code availability}
+
+The software is in the repository (see code metadata). The benchmark datasets are generated by \code{bench/agent-eval/gen/generate.mjs} from a fixed seed; the generator records SHA-256 hashes of the corpus, edges, gold answers and supporting records in a manifest. The latency measurements can be reproduced with \code{pnpm --filter @cheguers/benchmark bench <records> 50 <dimension>}. The agent evaluation uses the Terminal-Bench harness; the scorer (\code{bench/agent-eval/analysis/score.py}) and the CSV files in \code{docs/paper/data/} are in the repository. The per-trial results behind every agent table are in \code{docs/paper/data/agent-trials.csv}; raw agent transcripts and container logs are not published, because they contain full model outputs and are large. Running the agent trials requires a Claude subscription token.
+
+\section*{Declaration of generative AI and AI-assisted technologies in the manuscript preparation process}
+
+During the preparation of this work the authors used Claude (Anthropic) to draft and edit the text, to check bibliographic metadata, and to write and run the evaluation harness and its analysis code. The agent trials in \cref{sec:results} were run with \texttt{claude-haiku-5-5} as the subject of the study, not as an author. After using this tool, the authors reviewed and edited the content as needed and take full responsibility for the content of the published article.
+
+\bibliographystyle{elsarticle-num}
+\bibliography{references}
 
 \end{document}
