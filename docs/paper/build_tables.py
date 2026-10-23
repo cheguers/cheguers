@@ -74,9 +74,34 @@ def agent_failures():
     return tabular("llrr", head, r[1:])
 
 
+STRATA = ["hop0", "hop1", "hop2", "hop3", "filter"]
+
+
+def agent_f1_wide():
+    """Mean F1 with bootstrap CI, one row per arm, one column per stratum (main and calibration arms)."""
+    def block(name):
+        cells = {}
+        order = []
+        for row in rows(name)[1:]:
+            arm, stratum, mean, lo, hi = row[0], row[1], float(row[3]), float(row[4]), float(row[5])
+            if arm not in order:
+                order.append(arm)
+            cells[(arm, stratum)] = f"{mean:.2f} {{\\scriptsize[{lo:.2f}, {hi:.2f}]}}"
+        return [[esc(arm)] + [cells[(arm, s)] for s in STRATA] for arm in order]
+
+    main, calib = block("agent-f1"), block("calibration-f1")
+    lines = ["\\begin{tabular}{l" + "c" * len(STRATA) + "}", "\\toprule",
+             "Arm & " + " & ".join(STRATA) + " \\\\", "\\midrule"]
+    lines += [" & ".join(r) + " \\\\" for r in main]
+    lines.append("\\midrule")
+    lines += [" & ".join(r) + " \\\\" for r in calib]
+    lines += ["\\bottomrule", "\\end{tabular}", ""]
+    return "\n".join(lines)
+
+
 TABLES = {
     "latency-d128": latency, "ingestion": ingestion, "gate": gate,
-    "agent-f1": agent_f1, "calibration-f1": calibration, "agent-tests": agent_tests, "agent-failures": agent_failures,
+    "agent-f1": agent_f1, "agent-f1-wide": agent_f1_wide, "calibration-f1": calibration, "agent-tests": agent_tests, "agent-failures": agent_failures,
 }
 
 if __name__ == "__main__":
