@@ -1,0 +1,1916 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CheguersDB — Banca de Conclusão</title>
+
+    <!-- Fontes: Space Grotesk (display) + Inter substituto distinto via Fontshare -->
+    <link
+      rel="stylesheet"
+      href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&f[]=space-grotesk@500,600,700&display=swap"
+    />
+
+    <style>
+      /* ===========================================
+   VARIÁVEIS DE TEMA — Swiss Modern, fundo branco
+   Altere aqui para mudar todo o visual.
+   =========================================== */
+      :root {
+        /* Cores */
+        --bg-primary: #ffffff;
+        --bg-secondary: #f4f5f7;
+        --text-primary: #0d1117;
+        --text-secondary: #5b6472;
+        --accent: #d62828; /* vermelho assinatura */
+        --accent-soft: rgba(214, 40, 40, 0.08);
+        --rule: #e3e6ea;
+
+        /* Tipografia */
+        --font-display: "Space Grotesk", sans-serif;
+        --font-body: "General Sans", sans-serif;
+        --title-size: clamp(1.8rem, 5vw, 4rem);
+        --h2-size: clamp(1.3rem, 3.4vw, 2.4rem);
+        --h3-size: clamp(1rem, 2.2vw, 1.5rem);
+        --body-size: clamp(0.85rem, 1.4vw, 1.1rem);
+        --small-size: clamp(0.7rem, 1vw, 0.9rem);
+
+        /* Espaçamento */
+        --slide-padding: clamp(1.5rem, 5vw, 5rem);
+        --content-gap: clamp(0.75rem, 2vw, 1.6rem);
+        --element-gap: clamp(0.4rem, 1vw, 0.9rem);
+
+        /* Animação */
+        --ease: cubic-bezier(0.16, 1, 0.3, 1);
+        --dur: 0.7s;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+        scroll-snap-type: y mandatory;
+        height: 100%;
+      }
+
+      body {
+        font-family: var(--font-body);
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        overflow-x: hidden;
+        height: 100%;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* ===========================================
+   SLIDE — cada um ocupa exatamente o viewport
+   =========================================== */
+      .slide {
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
+        padding: var(--slide-padding);
+        scroll-snap-align: start;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .slide-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        max-height: 100%;
+        overflow: hidden;
+        max-width: 1100px;
+        margin: 0 auto;
+        width: 100%;
+      }
+
+      /* Numeração do slide + barra de regra superior */
+      .slide-meta {
+        position: absolute;
+        top: clamp(1rem, 3vw, 2.2rem);
+        left: var(--slide-padding);
+        right: var(--slide-padding);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: var(--font-display);
+        font-size: var(--small-size);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+      }
+      .slide-meta::after {
+        content: "";
+      }
+      .kicker {
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      /* Faixa decorativa lateral */
+      .slide::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 6px;
+        background: var(--accent);
+      }
+
+      /* ===========================================
+   TIPOGRAFIA
+   =========================================== */
+      h1 {
+        font-family: var(--font-display);
+        font-size: var(--title-size);
+        font-weight: 700;
+        line-height: 1.04;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-family: var(--font-display);
+        font-size: var(--h2-size);
+        font-weight: 600;
+        line-height: 1.1;
+        letter-spacing: -0.01em;
+        margin-bottom: var(--element-gap);
+      }
+      h2 .num {
+        color: var(--accent);
+        font-weight: 700;
+        margin-right: 0.5em;
+      }
+
+      /* Resumo de duas linhas — destaque sob o título */
+      .summary {
+        font-size: var(--h3-size);
+        line-height: 1.45;
+        color: var(--text-secondary);
+        max-width: 60ch;
+        padding-left: 1rem;
+        border-left: 3px solid var(--accent);
+        margin-bottom: var(--content-gap);
+      }
+
+      .subtitle {
+        font-size: var(--h3-size);
+        color: var(--text-secondary);
+        line-height: 1.4;
+        margin-top: var(--element-gap);
+        max-width: 70ch;
+      }
+
+      /* ===========================================
+   LISTA DE BULLETS
+   =========================================== */
+      .bullets {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: clamp(0.5rem, 1.4vh, 1.1rem);
+        max-width: 80ch;
+      }
+      .bullets li {
+        position: relative;
+        padding-left: 1.8rem;
+        font-size: var(--body-size);
+        line-height: 1.4;
+        color: var(--text-primary);
+      }
+      .bullets li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.55em;
+        width: 0.7rem;
+        height: 0.7rem;
+        background: var(--accent);
+        transform: rotate(45deg);
+      }
+      .bullets li strong {
+        font-weight: 600;
+      }
+
+      /* Grade de cartões (para contribuições / metadados) */
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+        gap: clamp(0.6rem, 1.5vw, 1.1rem);
+        margin-top: var(--element-gap);
+      }
+      .card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--rule);
+        border-radius: 10px;
+        padding: clamp(0.9rem, 2vw, 1.4rem);
+      }
+      .card .tag {
+        font-family: var(--font-display);
+        font-size: var(--small-size);
+        font-weight: 700;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: block;
+        margin-bottom: 0.3rem;
+      }
+      .card p {
+        font-size: var(--body-size);
+        line-height: 1.35;
+        color: var(--text-primary);
+      }
+
+      /* Tabela de metadados compacta */
+      .meta-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--small-size);
+        margin-top: var(--element-gap);
+      }
+      .meta-table td {
+        padding: clamp(0.4rem, 1vw, 0.7rem);
+        border-bottom: 1px solid var(--rule);
+        vertical-align: top;
+        line-height: 1.35;
+      }
+      .meta-table td:first-child {
+        font-weight: 600;
+        color: var(--text-secondary);
+        width: 38%;
+        white-space: nowrap;
+      }
+      .meta-table code {
+        font-family: var(--font-display);
+        background: var(--accent-soft);
+        color: var(--accent);
+        padding: 0.05em 0.4em;
+        border-radius: 4px;
+      }
+
+      /* Slide de título */
+      .title-slide .slide-content {
+        justify-content: center;
+      }
+      .title-slide .eyebrow {
+        font-family: var(--font-display);
+        font-weight: 600;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        font-size: var(--small-size);
+        margin-bottom: var(--content-gap);
+      }
+      .authors {
+        margin-top: var(--content-gap);
+        font-size: var(--body-size);
+        color: var(--text-primary);
+        line-height: 1.6;
+      }
+      .authors .affil {
+        color: var(--text-secondary);
+        font-size: var(--small-size);
+        margin-top: 0.3rem;
+      }
+
+      /* Pipeline visual simples */
+      .pipeline {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: clamp(0.4rem, 1.2vw, 0.9rem);
+        margin-top: var(--content-gap);
+      }
+      .pipeline .step {
+        background: var(--bg-secondary);
+        border: 1px solid var(--rule);
+        border-radius: 8px;
+        padding: clamp(0.5rem, 1.3vw, 0.9rem) clamp(0.7rem, 1.6vw, 1.2rem);
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: var(--small-size);
+      }
+      .pipeline .arrow {
+        color: var(--accent);
+        font-weight: 700;
+        font-size: var(--h3-size);
+      }
+      .pipeline .step .idx {
+        color: var(--accent);
+        margin-right: 0.4em;
+      }
+
+      /* Pílulas — áreas de interseção / contexto */
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: clamp(0.5rem, 1.4vw, 1rem);
+        margin-top: var(--content-gap);
+      }
+      .pills span {
+        background: var(--accent-soft);
+        color: var(--accent);
+        border: 1px solid rgba(214, 40, 40, 0.25);
+        border-radius: 999px;
+        padding: clamp(0.45rem, 1.2vw, 0.8rem) clamp(0.9rem, 2vw, 1.4rem);
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: var(--body-size);
+      }
+
+      /* Referências — colunas de trabalhos relacionados */
+      .refs {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+        gap: clamp(0.6rem, 1.5vw, 1.1rem);
+        margin-top: var(--element-gap);
+      }
+      .ref-col {
+        background: var(--bg-secondary);
+        border: 1px solid var(--rule);
+        border-radius: 10px;
+        padding: clamp(0.9rem, 2vw, 1.3rem);
+      }
+      .ref-col h3 {
+        font-family: var(--font-display);
+        font-size: var(--h3-size);
+        color: var(--accent);
+        margin-bottom: 0.6rem;
+      }
+      .ref-col ul {
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem 0.5rem;
+      }
+      .ref-col li {
+        font-size: var(--small-size);
+        background: var(--bg-primary);
+        border: 1px solid var(--rule);
+        border-radius: 6px;
+        padding: 0.25em 0.6em;
+        color: var(--text-primary);
+      }
+
+      /* Bullets com marcador de check */
+      .bullets.check li::before {
+        content: "✓";
+        background: none;
+        transform: none;
+        color: var(--accent);
+        font-weight: 700;
+        width: auto;
+        height: auto;
+        top: 0.02em;
+        font-size: 1.05em;
+      }
+
+      /* Citação / pergunta de pesquisa em destaque */
+      .quote {
+        border-left: 4px solid var(--accent);
+        background: var(--accent-soft);
+        padding: clamp(1rem, 2.5vw, 1.6rem) clamp(1.1rem, 2.6vw, 1.8rem);
+        border-radius: 0 10px 10px 0;
+        font-family: var(--font-display);
+        font-size: var(--h3-size);
+        line-height: 1.4;
+        font-weight: 500;
+        margin-top: var(--content-gap);
+        max-width: 70ch;
+      }
+
+      /* Rótulo de origem (ex.: dados de terceiros) dentro de cartões */
+      .card .src {
+        display: block;
+        font-family: var(--font-body);
+        font-size: var(--small-size);
+        color: var(--text-secondary);
+        font-weight: 500;
+        text-transform: none;
+        letter-spacing: 0;
+        margin-bottom: 0.55rem;
+      }
+
+      /* Listas compactas dentro de cartões */
+      .card ul {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 0.28rem;
+      }
+      .card ul li {
+        position: relative;
+        padding-left: 0.95rem;
+        font-size: var(--small-size);
+        line-height: 1.32;
+        color: var(--text-primary);
+      }
+      .card ul li::before {
+        content: "·";
+        position: absolute;
+        left: 0;
+        top: -0.05em;
+        color: var(--accent);
+        font-weight: 700;
+        font-size: 1.2em;
+      }
+      .card ul.check li::before {
+        content: "✓";
+        font-size: 0.85em;
+        top: 0.05em;
+      }
+      .card ul li strong {
+        font-weight: 600;
+      }
+      .card ul .lead {
+        color: var(--text-secondary);
+        font-style: italic;
+      }
+
+      /* Nota de rodapé do slide (honestidade dos dados) */
+      .note {
+        margin-top: var(--content-gap);
+        padding-top: 0.6rem;
+        border-top: 1px solid var(--rule);
+        font-size: var(--small-size);
+        line-height: 1.4;
+        color: var(--text-secondary);
+        max-width: 90ch;
+      }
+      .note strong {
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      /* Banner de aviso — metas vs. resultados */
+      .warn {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        background: #fff6e6;
+        border: 1px solid #f0c069;
+        border-left: 4px solid #e08a00;
+        border-radius: 8px;
+        padding: clamp(0.5rem, 1.2vw, 0.8rem) clamp(0.7rem, 1.5vw, 1.1rem);
+        font-size: var(--small-size);
+        line-height: 1.35;
+        color: #7a4d00;
+        margin-bottom: var(--element-gap);
+        max-width: 95ch;
+      }
+      .warn::before {
+        content: "⚠";
+        font-size: 1.2em;
+        color: #e08a00;
+        flex-shrink: 0;
+      }
+      .warn strong {
+        font-weight: 700;
+      }
+
+      /* Tabela de metas experimentais */
+      .goals-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: clamp(0.62rem, 1vw, 0.85rem);
+        margin-top: 0.2rem;
+      }
+      .goals-table th {
+        text-align: left;
+        font-family: var(--font-display);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-secondary);
+        border-bottom: 2px solid var(--text-primary);
+        padding: 0.3em 0.6em;
+        font-size: 0.9em;
+      }
+      .goals-table td {
+        padding: 0.24em 0.6em;
+        border-bottom: 1px solid var(--rule);
+        line-height: 1.25;
+        vertical-align: middle;
+      }
+      /* Coluna de categoria */
+      .goals-table .cat {
+        font-family: var(--font-display);
+        font-weight: 700;
+        color: var(--accent);
+        font-size: 0.85em;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        white-space: nowrap;
+      }
+      /* Início de um novo grupo recebe linha de separação reforçada */
+      .goals-table tr.grp td {
+        border-top: 1px solid var(--rule);
+      }
+      .goals-table .metric {
+        font-weight: 600;
+        color: var(--text-primary);
+      }
+      .goals-table .min {
+        color: var(--text-secondary);
+        white-space: nowrap;
+      }
+      .goals-table .want {
+        color: var(--accent);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .goals-table .why {
+        color: var(--text-secondary);
+        font-size: 0.95em;
+      }
+
+      /* Card de critério de sucesso em destaque */
+      .success-card {
+        background: var(--accent-soft);
+        border: 1px solid rgba(214, 40, 40, 0.25);
+        border-left: 5px solid var(--accent);
+        border-radius: 10px;
+        padding: clamp(1rem, 2.5vw, 1.6rem) clamp(1.2rem, 2.8vw, 1.9rem);
+        margin-top: var(--element-gap);
+      }
+      .success-card h3 {
+        font-family: var(--font-display);
+        font-size: var(--h3-size);
+        color: var(--accent);
+        margin-bottom: 0.6rem;
+      }
+      .success-card .intro {
+        font-size: var(--body-size);
+        color: var(--text-primary);
+        margin-bottom: 0.7rem;
+      }
+
+      /* ===========================================
+   ANIMAÇÃO DE ENTRADA
+   =========================================== */
+      .reveal {
+        opacity: 0;
+        transform: translateY(26px);
+        transition:
+          opacity var(--dur) var(--ease),
+          transform var(--dur) var(--ease);
+      }
+      .slide.visible .reveal {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .slide.visible .reveal:nth-child(1) {
+        transition-delay: 0.05s;
+      }
+      .slide.visible .reveal:nth-child(2) {
+        transition-delay: 0.15s;
+      }
+      .slide.visible .reveal:nth-child(3) {
+        transition-delay: 0.25s;
+      }
+      .slide.visible .reveal:nth-child(4) {
+        transition-delay: 0.35s;
+      }
+      .slide.visible .reveal:nth-child(5) {
+        transition-delay: 0.45s;
+      }
+      .slide.visible .reveal:nth-child(6) {
+        transition-delay: 0.55s;
+      }
+
+      /* ===========================================
+   NAVEGAÇÃO
+   =========================================== */
+      .progress-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 3px;
+        background: var(--accent);
+        z-index: 100;
+        width: 0;
+        transition: width 0.2s linear;
+      }
+      .nav-dots {
+        position: fixed;
+        right: clamp(0.8rem, 2vw, 1.6rem);
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        z-index: 100;
+      }
+      .nav-dots button {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        border: 1.5px solid var(--text-secondary);
+        background: transparent;
+        cursor: pointer;
+        padding: 0;
+        transition: all 0.25s var(--ease);
+      }
+      .nav-dots button.active {
+        background: var(--accent);
+        border-color: var(--accent);
+        transform: scale(1.4);
+      }
+      .keyboard-hint {
+        position: fixed;
+        bottom: clamp(0.6rem, 2vw, 1.4rem);
+        right: clamp(0.8rem, 2vw, 1.6rem);
+        font-size: var(--small-size);
+        color: var(--text-secondary);
+        z-index: 100;
+      }
+
+      /* ===========================================
+   BREAKPOINTS
+   =========================================== */
+      @media (max-height: 700px) {
+        :root {
+          --slide-padding: clamp(1rem, 3.5vw, 2.5rem);
+          --content-gap: clamp(0.5rem, 1.5vw, 1rem);
+          --title-size: clamp(1.5rem, 4.5vw, 2.8rem);
+          --h2-size: clamp(1.1rem, 3vw, 1.9rem);
+        }
+      }
+      @media (max-height: 560px) {
+        .nav-dots,
+        .keyboard-hint {
+          display: none;
+        }
+        :root {
+          --body-size: clamp(0.72rem, 1.2vw, 0.95rem);
+        }
+      }
+      @media (max-width: 640px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .meta-table td:first-child {
+          width: 42%;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.2s !important;
+        }
+        html {
+          scroll-behavior: auto;
+        }
+      }
+
+      /* ===========================================
+   ADIÇÕES PARA A BANCA — mesmos tokens do tema
+   =========================================== */
+
+      /* Números em destaque (resultados medidos) */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+        gap: clamp(0.6rem, 1.5vw, 1.1rem);
+        margin-top: var(--element-gap);
+      }
+      .stat {
+        background: var(--bg-secondary);
+        border: 1px solid var(--rule);
+        border-radius: 10px;
+        padding: clamp(0.8rem, 1.8vw, 1.2rem);
+      }
+      .stat .value {
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: clamp(1.4rem, 3.2vw, 2.3rem);
+        line-height: 1;
+        color: var(--accent);
+        letter-spacing: -0.02em;
+      }
+      .stat .value small {
+        font-size: 0.5em;
+        font-weight: 600;
+        margin-left: 0.15em;
+        color: var(--text-secondary);
+      }
+      .stat .label {
+        margin-top: 0.45rem;
+        font-size: var(--small-size);
+        line-height: 1.3;
+        color: var(--text-secondary);
+      }
+
+      /* Bloco de código */
+      .code {
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        font-size: clamp(0.58rem, 0.95vw, 0.82rem);
+        line-height: 1.5;
+        background: var(--bg-secondary);
+        border: 1px solid var(--rule);
+        border-left: 4px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+        padding: clamp(0.7rem, 1.6vw, 1.1rem) clamp(0.8rem, 1.8vw, 1.3rem);
+        white-space: pre;
+        overflow: hidden;
+        color: var(--text-primary);
+        margin-top: var(--element-gap);
+      }
+      .code .c {
+        color: var(--text-secondary);
+      }
+      .code .k {
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      /* Diagrama de camadas */
+      .layers {
+        display: flex;
+        flex-direction: column;
+        gap: clamp(0.35rem, 0.9vw, 0.6rem);
+        margin-top: var(--element-gap);
+      }
+      .layer {
+        border: 1px solid var(--rule);
+        border-radius: 8px;
+        background: var(--bg-secondary);
+        padding: clamp(0.5rem, 1.2vw, 0.8rem) clamp(0.8rem, 1.6vw, 1.1rem);
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: var(--small-size);
+        text-align: center;
+      }
+      .layer.accent {
+        background: var(--accent-soft);
+        border-color: rgba(214, 40, 40, 0.3);
+        color: var(--accent);
+      }
+      .layer.dark {
+        background: var(--text-primary);
+        border-color: var(--text-primary);
+        color: #fff;
+      }
+      .layer-row {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: clamp(0.3rem, 0.8vw, 0.5rem);
+      }
+      .layer-row .layer {
+        padding-left: 0.3rem;
+        padding-right: 0.3rem;
+        font-weight: 500;
+      }
+      .layer-row .layer b {
+        display: block;
+        font-weight: 700;
+      }
+      .layer .sub {
+        display: block;
+        font-family: var(--font-body);
+        font-weight: 400;
+        color: var(--text-secondary);
+        font-size: 0.9em;
+      }
+      .layer.dark .sub {
+        color: #c9ced6;
+      }
+
+      /* Fórmula em destaque */
+      .formula {
+        font-family: var(--font-display);
+        font-size: clamp(0.9rem, 1.9vw, 1.35rem);
+        font-weight: 600;
+        text-align: center;
+        background: var(--bg-secondary);
+        border: 1px solid var(--rule);
+        border-radius: 10px;
+        padding: clamp(0.7rem, 1.6vw, 1.1rem);
+        margin-top: var(--element-gap);
+      }
+      .formula em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      .formula .legend {
+        display: block;
+        margin-top: 0.4rem;
+        font-family: var(--font-body);
+        font-weight: 400;
+        font-size: var(--small-size);
+        color: var(--text-secondary);
+      }
+
+      /* Tabela de resultados: realce de células */
+      .goals-table td.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .goals-table th.num {
+        text-align: right;
+      }
+      .goals-table tr.focus td {
+        background: var(--accent-soft);
+      }
+      .goals-table td.good {
+        color: #1b7f4b;
+        font-weight: 700;
+      }
+      .goals-table td.bad {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .goals-table td.mid {
+        color: #b26a00;
+        font-weight: 700;
+      }
+      .goals-table tr.calib td {
+        color: var(--text-secondary);
+        font-style: italic;
+      }
+
+      /* Duas colunas */
+      .cols {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: clamp(0.8rem, 2.2vw, 1.8rem);
+        align-items: start;
+        margin-top: var(--element-gap);
+      }
+      @media (max-width: 760px) {
+        .cols {
+          grid-template-columns: 1fr;
+        }
+        .layer-row {
+          grid-template-columns: repeat(3, 1fr);
+        }
+      }
+
+      /* Linha do tempo */
+      .timeline {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+        gap: clamp(0.5rem, 1.2vw, 0.9rem);
+        margin-top: var(--content-gap);
+        position: relative;
+      }
+      .timeline .when {
+        font-family: var(--font-display);
+        font-weight: 700;
+        color: var(--accent);
+        font-size: var(--small-size);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-top: 3px solid var(--accent);
+        padding-top: 0.5rem;
+        display: block;
+      }
+      .timeline .what {
+        font-size: var(--small-size);
+        line-height: 1.35;
+        margin-top: 0.3rem;
+        color: var(--text-primary);
+      }
+      .timeline .past .when {
+        color: var(--text-secondary);
+        border-top-color: var(--rule);
+      }
+
+      /* Veredito por hipótese */
+      .verdict {
+        display: inline-block;
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: 0.8em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 0.15em 0.6em;
+        border-radius: 999px;
+        margin-bottom: 0.5rem;
+      }
+      .verdict.no {
+        background: var(--accent-soft);
+        color: var(--accent);
+      }
+      .verdict.partial {
+        background: #fff6e6;
+        color: #b26a00;
+      }
+      .verdict.yes {
+        background: #e8f6ee;
+        color: #1b7f4b;
+      }
+
+      /* Slide final */
+      .closing h1 {
+        margin-bottom: var(--element-gap);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="progress-bar" id="progressBar"></div>
+    <nav class="nav-dots" id="navDots"></nav>
+    <div class="keyboard-hint">← → navegar</div>
+
+    <!-- 01. TÍTULO -->
+    <section class="slide title-slide">
+      <div class="slide-meta">
+        <span class="kicker">Banca de Conclusão · Engenharia de Software</span><span>01</span>
+      </div>
+      <div class="slide-content">
+        <p class="eyebrow reveal">Trabalho de Conclusão de Curso · Submissão à SoftwareX</p>
+        <h1 class="reveal">
+          CheguersDB: banco grafo–vetorial embarcado com recuperação híbrida determinística — e um
+          teste controlado de se ele ajuda agentes de IA
+        </h1>
+        <div class="authors reveal">
+          Rafael Coutinho · Davi Arantes · Kaleb Isaias
+          <div class="affil">
+            Orientação: José Romualdo · Instituto de Tecnologia e Liderança (Inteli)
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 02. ROTEIRO -->
+    <section class="slide">
+      <div class="slide-meta"><span class="kicker">Roteiro</span><span>02</span></div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>O que vamos apresentar</h2>
+        <p class="summary reveal">
+          Um software entregue, medido e testado contra uma pergunta honesta: ele melhora o que um
+          agente de IA faz com os dados?
+        </p>
+        <div class="pipeline reveal">
+          <span class="step"><span class="idx">1</span>Problema</span>
+          <span class="arrow">→</span>
+          <span class="step"><span class="idx">2</span>Trajetória</span>
+          <span class="arrow">→</span>
+          <span class="step"><span class="idx">3</span>Software</span>
+          <span class="arrow">→</span>
+          <span class="step"><span class="idx">4</span>Latência</span>
+          <span class="arrow">→</span>
+          <span class="step"><span class="idx">5</span>Avaliação com agente</span>
+          <span class="arrow">→</span>
+          <span class="step"><span class="idx">6</span>Impacto e próximos passos</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03. MOTIVAÇÃO -->
+    <section class="slide">
+      <div class="slide-meta">
+        <span class="kicker">Motivação e Relevância</span><span>03</span>
+      </div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">1</span>Por que HybridRAG</h2>
+        <p class="summary reveal">
+          RAG ancora um modelo de linguagem em passagens recuperadas. O HybridRAG soma busca vetorial
+          e travessia de grafo.
+        </p>
+        <ul class="bullets reveal">
+          <li>
+            A busca vetorial encontra passagens <strong>semanticamente próximas</strong>, mas ignora
+            relações explícitas entre entidades.
+          </li>
+          <li>
+            Variantes com grafo adicionam essas relações: constroem um grafo de conhecimento ou
+            percorrem um existente.
+          </li>
+          <li>
+            Em perguntas sobre transcrições de resultados financeiros, o HybridRAG
+            <strong>superou cada abordagem isolada</strong> em recuperação e qualidade de resposta
+            (Sarmah et al., 2024).
+          </li>
+          <li>Na prática, esses sistemas juntam <strong>dois bancos</strong> no código da aplicação.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 04. PROBLEMA -->
+    <section class="slide">
+      <div class="slide-meta"><span class="kicker">O Problema</span><span>04</span></div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">2</span>Os quatro custos de compor dois bancos</h2>
+        <p class="summary reveal">
+          Um banco vetorial mais um banco de grafo funciona, mas cada consulta híbrida paga por essa
+          composição.
+        </p>
+        <div class="grid">
+          <div class="card reveal">
+            <span class="tag">Latência</span>
+            <p>Duas idas e voltas de cliente e a orquestração entre elas em toda consulta.</p>
+          </div>
+          <div class="card reveal">
+            <span class="tag">Consistência</span>
+            <p>Dois logs de commit: um embedding pode aparecer antes do registro ou das arestas.</p>
+          </div>
+          <div class="card reveal">
+            <span class="tag">Operação</span>
+            <p>Dois serviços para implantar, monitorar, fazer backup e atualizar.</p>
+          </div>
+          <div class="card reveal">
+            <span class="tag">Reprodutibilidade</span>
+            <p>
+              A ordem do contexto depende de dois rankers independentes: difícil testar regressão de
+              uma resposta.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 05. POSICIONAMENTO -->
+    <section class="slide">
+      <div class="slide-meta">
+        <span class="kicker">Posicionamento Científico</span><span>05</span>
+      </div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>Trabalhos relacionados</h2>
+        <p class="summary reveal">
+          Sistemas integrados já existem. O CheguersDB é uma biblioteca, não um servidor, e
+          especifica seu ranking híbrido de forma exata.
+        </p>
+        <div class="refs">
+          <div class="ref-col reveal">
+            <h3>Científico</h3>
+            <ul>
+              <li>Lewis et al. (2020) — RAG</li>
+              <li>Edge et al. (2024) — GraphRAG</li>
+              <li>Peng et al. (2025) — survey de Graph RAG</li>
+              <li>Sarmah et al. (2024) — HybridRAG</li>
+              <li>Merrill et al. (2026) — Terminal-Bench</li>
+            </ul>
+          </div>
+          <div class="ref-col reveal">
+            <h3>Software</h3>
+            <ul>
+              <li>HelixDB — grafo com busca vetorial nativa</li>
+              <li>Kùzu — grafo embarcável</li>
+              <li>PostgreSQL + pgvector</li>
+              <li>Turso — SQL embarcado (base do CheguersDB)</li>
+              <li>Neo4j + Qdrant — stack composta</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 06. PERGUNTA E CONTRIBUIÇÕES -->
+    <section class="slide">
+      <div class="slide-meta">
+        <span class="kicker">Proposta · Contribuições</span><span>06</span>
+      </div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">3</span>Pergunta e contribuições</h2>
+        <blockquote class="quote reveal">
+          Um único banco embarcado consegue servir recuperação híbrida determinística — e isso
+          melhora o que um agente de IA faz com os dados recuperados?
+        </blockquote>
+        <div class="grid">
+          <div class="card reveal">
+            <span class="tag">i · Software</span>
+            <p>
+              Um armazenamento transacional único para registros, relações e vetores, com API
+              tipada e recuperação híbrida determinística com proveniência.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="tag">ii · Latência</span>
+            <p>Caracterização de busca exata, travessia e consultas híbridas.</p>
+          </div>
+          <div class="card reveal">
+            <span class="tag">iii · Avaliação</span>
+            <p>
+              Estudo pré-registrado com agente, harness aberto e gerador de corpus com respostas
+              exatas.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 07. TRAJETÓRIA -->
+    <section class="slide">
+      <div class="slide-meta">
+        <span class="kicker">Metodologia e Execução</span><span>07</span>
+      </div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">4</span>Trajetória do projeto</h2>
+        <p class="summary reveal">
+          A principal decisão técnica foi abandonar o motor de armazenamento próprio e concentrar o
+          esforço onde está o valor.
+        </p>
+        <div class="timeline reveal">
+          <div class="past">
+            <span class="when">mar–mai 2026</span>
+            <p class="what">Protótipo em Rust: log de commits, replay, páginas. Nunca chegou à main.</p>
+          </div>
+          <div>
+            <span class="when">set 2026</span>
+            <p class="what">Pivô: núcleo reescrito em TypeScript sobre Turso, que cuida da durabilidade.</p>
+          </div>
+          <div>
+            <span class="when">set 2026</span>
+            <p class="what">API v0.1 completa, 105 testes e harness de latência.</p>
+          </div>
+          <div>
+            <span class="when">out 2026</span>
+            <p class="what">Estudo com agente pré-registrado, executado e analisado.</p>
+          </div>
+          <div>
+            <span class="when">out 2026</span>
+            <p class="what">Release 0.2.0 e artigo no template da SoftwareX.</p>
+          </div>
+        </div>
+        <p class="note reveal">
+          <strong>Lição:</strong> construir o armazenamento primeiro atrasava tudo o que um usuário de
+          RAG toca. Reusar uma camada durável madura entregou a API completa em um módulo.
+        </p>
+      </div>
+    </section>
+
+    <!-- 08. ARQUITETURA -->
+    <section class="slide">
+      <div class="slide-meta"><span class="kicker">Software</span><span>08</span></div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">5</span>Arquitetura</h2>
+        <p class="summary reveal">
+          Biblioteca no processo da aplicação: sem servidor. O Turso cuida da durabilidade; o
+          CheguersDB, de tudo que transforma o arquivo em banco grafo–vetorial.
+        </p>
+        <div class="layers reveal">
+          <div class="layer">
+            API pública <code>open(path)</code> · CLI JSON · harness de benchmark
+          </div>
+          <div class="layer-row">
+            <div class="layer"><b>records</b><span class="sub">labels</span></div>
+            <div class="layer"><b>relationships</b><span class="sub">travessia</span></div>
+            <div class="layer"><b>query DSL</b><span class="sub">AST → SQL</span></div>
+            <div class="layer"><b>vectors</b><span class="sub">top-k exato</span></div>
+            <div class="layer"><b>hybrid</b><span class="sub">modo A / B</span></div>
+            <div class="layer"><b>import</b><span class="sub">schema</span></div>
+          </div>
+          <div class="layer accent">TursoAdapter: uma transação imediata por chamada</div>
+          <div class="layer dark">
+            Turso<span class="sub">um arquivo · WAL · recuperação · índices B-tree</span>
+          </div>
+        </div>
+        <p class="note reveal">
+          TypeScript sobre Node.js, com Effect: toda operação retorna um efeito com erro tipado.
+          Nenhum SQL cru e nenhuma chave interna atravessam a API.
+        </p>
+      </div>
+    </section>
+
+    <!-- 09. MODELO DE DADOS -->
+    <section class="slide">
+      <div class="slide-meta"><span class="kicker">Software</span><span>09</span></div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>Modelo de dados híbrido</h2>
+        <p class="summary reveal">
+          Cinco tabelas num único arquivo. Registros, arestas e vetores são gravados na mesma
+          transação.
+        </p>
+        <table class="meta-table reveal">
+          <tr>
+            <td><code>records</code></td>
+            <td>Identificador público estável e corpo JSON</td>
+          </tr>
+          <tr>
+            <td><code>labels</code> · <code>record_labels</code></td>
+            <td>Rótulos dos registros</td>
+          </tr>
+          <tr>
+            <td><code>relationships</code></td>
+            <td>
+              Arestas tipadas e direcionadas com propriedades JSON; índices por origem, destino e tipo
+            </td>
+          </tr>
+          <tr>
+            <td><code>vectors</code></td>
+            <td>Um float32 por (registro, namespace); dimensão fixa por namespace, até 4.096</td>
+          </tr>
+          <tr>
+            <td><code>schema_catalog</code></td>
+            <td>Tipos inferidos por rótulo; o JSON do usuário nunca é alterado</td>
+          </tr>
+        </table>
+        <ul class="bullets check reveal" style="margin-top: var(--content-gap)">
+          <li>Uma consulta híbrida lê <strong>um único estado consistente</strong>.</li>
+          <li>Uma escrita em várias tabelas é <strong>atômica</strong>: tudo ou nada.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 10. RECUPERAÇÃO HÍBRIDA -->
+    <section class="slide">
+      <div class="slide-meta"><span class="kicker">Software</span><span>10</span></div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>Recuperação híbrida determinística</h2>
+        <p class="summary reveal">
+          Modo A: filtro e busca vetorial. Modo B: sementes vetoriais, expansão no grafo e rerank com
+          pesos fixos.
+        </p>
+        <div class="pipeline reveal">
+          <span class="step"><span class="idx">1</span>Filtro em SQL</span>
+          <span class="arrow">→</span>
+          <span class="step"><span class="idx">2</span>Top-k exato (sementes)</span>
+          <span class="arrow">→</span>
+          <span class="step"><span class="idx">3</span>Expansão 1–3 saltos</span>
+          <span class="arrow">→</span>
+          <span class="step"><span class="idx">4</span>Agregação</span>
+          <span class="arrow">→</span>
+          <span class="step"><span class="idx">5</span>Rerank + proveniência</span>
+        </div>
+        <div class="formula reveal">
+          score(v) = <em>0,6</em> · contribuição + <em>0,3</em> · 1/(1 + saltos) +
+          <em>0,1</em> · fração de sementes que alcançam v
+          <span class="legend"
+            >contribuição = melhor valor de similaridade da semente × 0,85<sup>saltos</sup> × peso do tipo de aresta
+            · empate desfeito pelo id público</span
+          >
+        </div>
+        <p class="note reveal">
+          <strong>Proveniência de cada resultado:</strong> semente de origem, profundidade, número de
+          caminhos e resumo do caminho, como <code>survey --CITES--&gt; paper</code>. A mesma pergunta
+          sobre os mesmos dados devolve sempre a mesma ordem.
+        </p>
+      </div>
+    </section>
+
+    <!-- 11. EXEMPLO E CORREÇÃO -->
+    <section class="slide">
+      <div class="slide-meta"><span class="kicker">Software</span><span>11</span></div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>Uso e estratégia de correção</h2>
+        <div class="cols">
+          <div class="reveal">
+            <div class="code"><span class="k">yield*</span> db.transaction((ops) =&gt; ...
+  ops.records.create({ id: <span class="c">"survey-graphrag"</span> ... })
+  ops.relationships.create({ type: <span class="c">"CITES"</span> ... })
+  ops.vectors.upsert({ recordId, vector })
+
+<span class="k">const</span> hits = <span class="k">yield*</span> db.hybrid.search({
+  vector, metric: <span class="c">"cosine"</span>,
+  seeds: 1, expandDepth: 1,
+  includeProvenance: <span class="k">true</span> })
+
+<span class="c">// survey-graphrag --CITES--&gt; paper-rag-2020</span></div>
+          </div>
+          <div class="reveal">
+            <div class="stats">
+              <div class="stat">
+                <div class="value">105</div>
+                <div class="label">testes em 13 arquivos (Vitest)</div>
+              </div>
+            </div>
+            <ul class="bullets" style="margin-top: var(--element-gap)">
+              <li><strong>Golden:</strong> SQL exato e ordem dos parâmetros.</li>
+              <li><strong>Property-based</strong> (fast-check): parser e importador.</li>
+              <li>
+                <strong>Diferenciais:</strong> BFS e CTE recursiva dão o mesmo resultado, inclusive
+                após fechar e reabrir.
+              </li>
+              <li><strong>Transações:</strong> rollback em todos os tipos de mutação.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12. LATÊNCIA: NÚMEROS -->
+    <section class="slide">
+      <div class="slide-meta"><span class="kicker">Latência</span><span>12</span></div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">6</span>Quanto custa uma consulta</h2>
+        <p class="summary reveal">
+          Dados sintéticos com semente fixa, 10.000 registros, d = 128, Apple M5. Medianas de 50
+          execuções após 5 de aquecimento.
+        </p>
+        <div class="stats reveal">
+          <div class="stat">
+            <div class="value">1,3–1,8<small>ms</small></div>
+            <div class="label">travessia BFS de 1 a 3 saltos</div>
+          </div>
+          <div class="stat">
+            <div class="value">34<small>ms</small></div>
+            <div class="label">busca vetorial exata top-10</div>
+          </div>
+          <div class="stat">
+            <div class="value">39<small>ms</small></div>
+            <div class="label">consulta híbrida, modo B, 2 saltos</div>
+          </div>
+          <div class="stat">
+            <div class="value">7.918<small>/s</small></div>
+            <div class="label">criação de registros, um a um</div>
+          </div>
+          <div class="stat">
+            <div class="value">2,0×</div>
+            <div class="label">arquivo vs. bytes brutos dos vetores</div>
+          </div>
+        </div>
+        <p class="note reveal">
+          <strong>Limites:</strong> vetores sem estrutura semântica (medem custo, não qualidade), grafo
+          em cadeia com um hub, uma rodada por configuração, uma máquina.
+        </p>
+      </div>
+    </section>
+
+    <!-- 13. LATÊNCIA: LEITURA -->
+    <section class="slide">
+      <div class="slide-meta"><span class="kicker">Latência</span><span>13</span></div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>O que os números mostram</h2>
+        <p class="summary reveal">
+          O gargalo é a varredura vetorial exata. O grafo é barato, e a escolha de BFS como padrão
+          está justificada.
+        </p>
+        <ul class="bullets reveal">
+          <li>
+            <strong>A varredura exata domina:</strong> 4× mais registros custam 4,2× mais tempo
+            (8,0 → 34,0 ms), como prevê uma busca O(N).
+          </li>
+          <li>
+            <strong>A expansão no grafo é barata:</strong> 2 saltos somam só 2,4 ms a 2.500 registros
+            e 5,0 ms a 10.000.
+          </li>
+          <li>
+            <strong>BFS é o padrão certo:</strong> 7× mais rápida que a CTE recursiva com 2 saltos e
+            13× com 3, e quase constante em N.
+          </li>
+          <li>
+            <strong>Filtro que não seleciona é só custo:</strong> +2 a 7,5 ms quando casa com todos os
+            registros.
+          </li>
+          <li>
+            <strong>Ingestão e armazenamento não são gargalo:</strong> 13.600–15.200 registros/s em
+            lotes de 25.
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 14. METAS × MEDIDO -->
+    <section class="slide">
+      <div class="slide-meta"><span class="kicker">Latência</span><span>14</span></div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>Metas iniciais × resultados medidos</h2>
+        <div class="warn reveal">
+          <span
+            >As metas foram definidas para 100 mil nós; os resultados são de
+            <strong>10 mil registros</strong>. As metas que dependem da busca vetorial ficaram cerca
+            de <strong>10× acima</strong>.</span
+          >
+        </div>
+        <table class="goals-table reveal">
+          <thead>
+            <tr>
+              <th>Indicador</th>
+              <th class="num">Meta</th>
+              <th class="num">Medido (10k, d = 128)</th>
+              <th>Resultado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="grp">
+              <td class="metric">Busca vetorial p95</td>
+              <td class="num">≤ 5 ms</td>
+              <td class="num">39,6 ms</td>
+              <td class="bad">Não atingida</td>
+            </tr>
+            <tr>
+              <td class="metric">Travessia p95 (1–2 saltos)</td>
+              <td class="num">≤ 1 ms</td>
+              <td class="num">1,6 / 1,9 ms</td>
+              <td class="mid">Próxima</td>
+            </tr>
+            <tr>
+              <td class="metric">Travessia p99 (1–2 saltos)</td>
+              <td class="num">≤ 3 ms</td>
+              <td class="num">1,7 / 2,2 ms</td>
+              <td class="good">Atingida</td>
+            </tr>
+            <tr>
+              <td class="metric">Híbrida p95 (2 saltos)</td>
+              <td class="num">≤ 8 ms</td>
+              <td class="num">86,0 ms</td>
+              <td class="bad">Não atingida</td>
+            </tr>
+            <tr>
+              <td class="metric">Ingestão de registros</td>
+              <td class="num">≥ 5.000/s</td>
+              <td class="num">7.918/s</td>
+              <td class="good">Atingida</td>
+            </tr>
+            <tr>
+              <td class="metric">Ingestão de arestas</td>
+              <td class="num">≥ 5.000/s</td>
+              <td class="num">3.963/s</td>
+              <td class="bad">Não atingida</td>
+            </tr>
+            <tr>
+              <td class="metric">Arquivo vs. dados brutos</td>
+              <td class="num">≤ 3×</td>
+              <td class="num">2,0×</td>
+              <td class="good">Atingida</td>
+            </tr>
+            <tr>
+              <td class="metric">Ordem determinística</td>
+              <td class="num">100%</td>
+              <td class="num">todos os testes</td>
+              <td class="good">Atingida</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="note reveal">
+          A busca exata é proposital: é a referência para medir o recall de um futuro índice
+          aproximado. A medição agora justifica esse índice.
+        </p>
+      </div>
+    </section>
+
+    <!-- 15. AVALIAÇÃO COM AGENTE: DESENHO -->
+    <section class="slide">
+      <div class="slide-meta">
+        <span class="kicker">Avaliação com Agente</span><span>15</span>
+      </div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">7</span>O banco ajuda um agente de IA?</h2>
+        <p class="summary reveal">
+          Estudo pré-registrado antes de qualquer execução: o mesmo agente responde perguntas
+          relacionais com e sem o CheguersDB.
+        </p>
+        <div class="grid">
+          <div class="card reveal">
+            <span class="tag">Corpus</span>
+            <ul>
+              <li>Gerado com semente: 2.220 registros, ~8.500 arestas</li>
+              <li>Artigos, autores, organizações, conferências</li>
+              <li>Nomes quase idênticos de propósito</li>
+              <li>Perguntas parafraseadas; gabarito calculado do grafo</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <span class="tag">Estratos</span>
+            <ul>
+              <li><strong>hop0:</strong> achar o artigo</li>
+              <li><strong>hop1:</strong> a conferência dele</li>
+              <li><strong>hop2:</strong> organizações dos autores</li>
+              <li><strong>hop3:</strong> idem, para os artigos citados</li>
+              <li><strong>filter:</strong> filtros por nome + 2 saltos</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <span class="tag">Braços</span>
+            <ul>
+              <li><strong>files:</strong> arquivo JSONL + Python</li>
+              <li><strong>sqlite3:</strong> mesmos dados em SQLite</li>
+              <li><strong>cheguers-full:</strong> CLI com expansão</li>
+              <li><strong>cheguers-vector:</strong> só busca vetorial</li>
+              <li class="lead">+ calibração: sem dados e só com o gabarito</li>
+            </ul>
+          </div>
+        </div>
+        <p class="note reveal">
+          <code>claude-haiku-5-5</code> em containers do Terminal-Bench · limite de 12 turnos · 6
+          sementes × 5 estratos × 3 repetições · métrica: F1 por pergunta.
+        </p>
+      </div>
+    </section>
+
+    <!-- 16. RESULTADOS F1 -->
+    <section class="slide">
+      <div class="slide-meta">
+        <span class="kicker">Avaliação com Agente</span><span>16</span>
+      </div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>F1 médio por braço e estrato</h2>
+        <p class="summary reveal">
+          O agente com Python já resolve quase tudo. Sem a expansão no grafo, o agente vetorial
+          despenca nas perguntas de vários saltos.
+        </p>
+        <table class="goals-table reveal">
+          <thead>
+            <tr>
+              <th>Braço</th>
+              <th class="num">hop0</th>
+              <th class="num">hop1</th>
+              <th class="num">hop2</th>
+              <th class="num">hop3</th>
+              <th class="num">filter</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="grp">
+              <td class="metric">files</td>
+              <td class="num">0,94</td>
+              <td class="num">0,99</td>
+              <td class="num">1,00</td>
+              <td class="num">0,92</td>
+              <td class="num">1,00</td>
+            </tr>
+            <tr>
+              <td class="metric">sqlite3</td>
+              <td class="num">0,99</td>
+              <td class="num">0,97</td>
+              <td class="num">1,00</td>
+              <td class="num">1,00</td>
+              <td class="num">1,00</td>
+            </tr>
+            <tr class="focus">
+              <td class="metric">cheguers-full</td>
+              <td class="num good">1,00</td>
+              <td class="num">0,87</td>
+              <td class="num">0,89</td>
+              <td class="num">0,69</td>
+              <td class="num">0,89</td>
+            </tr>
+            <tr>
+              <td class="metric">cheguers-vector</td>
+              <td class="num">0,94</td>
+              <td class="num">0,79</td>
+              <td class="num bad">0,28</td>
+              <td class="num bad">0,26</td>
+              <td class="num bad">0,15</td>
+            </tr>
+            <tr class="grp calib">
+              <td>closed-book (piso)</td>
+              <td class="num">0,00</td>
+              <td class="num">0,00</td>
+              <td class="num">0,00</td>
+              <td class="num">0,00</td>
+              <td class="num">0,00</td>
+            </tr>
+            <tr class="calib">
+              <td>gold-context (teto)</td>
+              <td class="num">1,00</td>
+              <td class="num">0,89</td>
+              <td class="num">1,00</td>
+              <td class="num">0,83</td>
+              <td class="num">1,00</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="note reveal">
+          Os braços com a CLI esgotaram mais vezes o limite de turnos: <strong>cheguers-vector</strong>
+          em 56 tentativas, <strong>cheguers-full</strong> em 31, <strong>files</strong> em 1 e
+          <strong>sqlite3</strong> em nenhuma.
+        </p>
+      </div>
+    </section>
+
+    <!-- 17. HIPÓTESES -->
+    <section class="slide">
+      <div class="slide-meta">
+        <span class="kicker">Avaliação com Agente</span><span>17</span>
+      </div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>Hipóteses pré-registradas</h2>
+        <p class="summary reveal">
+          Testes unilaterais de permutação pareada, com correção de Holm nas seis comparações.
+        </p>
+        <div class="grid">
+          <div class="card reveal">
+            <span class="verdict no">Não sustentada</span>
+            <span class="tag">H1 · full &gt; files em hop2, hop3, filter</span>
+            <p>Diferenças de −0,11, −0,24 e −0,11. O banco não superou o agente com Python.</p>
+          </div>
+          <div class="card reveal">
+            <span class="verdict partial">Só antes da correção</span>
+            <span class="tag">H2 · full &gt; vector em hop2, hop3</span>
+            <p>
+              +0,61 (p = 0,015) e +0,42 (p = 0,032). Após Holm: 0,089 e 0,16. Sugestivo, não
+              estabelecido.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="verdict yes">Sustentada</span>
+            <span class="tag">H3 · full ≥ files em hop0</span>
+            <p>F1 = 1,00 em hop0: o uso obrigatório da CLI não custou acurácia nas buscas diretas.</p>
+          </div>
+        </div>
+        <p class="note reveal">
+          Antes do estudo, um teste de recuperação sem LLM já indicava o limite: o recall@20 do
+          híbrido foi igual ao vetorial em todos os estratos.
+        </p>
+      </div>
+    </section>
+
+    <!-- 18. INTERPRETAÇÃO -->
+    <section class="slide">
+      <div class="slide-meta">
+        <span class="kicker">Avaliação com Agente</span><span>18</span>
+      </div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>Como ler o resultado</h2>
+        <p class="summary reveal">
+          Sem evidência de benefício <em>nestas condições</em> — o que não mostra que o banco seja
+          prejudicial em geral.
+        </p>
+        <div class="cols">
+          <div class="card reveal">
+            <span class="tag">Por que o baseline é forte</span>
+            <ul>
+              <li>O agente escreve um script que lê o corpus e percorre as relações exatamente</li>
+              <li>O modelo faz o passo semântico; o join é exato</li>
+              <li>Com 2.220 registros, nada força uma etapa de recuperação</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <span class="tag">O que testaria a hipótese</span>
+            <ul>
+              <li>Corpus grande demais para caber num contexto ou processo</li>
+              <li>Filtros seletivos e documentos não estruturados</li>
+              <li>Base pública de perguntas multi-salto com gabarito</li>
+              <li class="lead">→ novo estudo, também pré-registrado</li>
+            </ul>
+          </div>
+        </div>
+        <p class="note reveal">
+          <strong>Compatível com a literatura:</strong> os ganhos do HybridRAG vieram de texto não
+          estruturado, que um script não consegue juntar. O benefício pode depender de a estrutura
+          ser recuperável sem busca.
+        </p>
+      </div>
+    </section>
+
+    <!-- 19. VALIDADE -->
+    <section class="slide">
+      <div class="slide-meta">
+        <span class="kicker">Avaliação com Agente</span><span>19</span>
+      </div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>Ameaças à validade e desvios</h2>
+        <p class="summary reveal">
+          Os limites do estudo estão declarados no artigo e no pré-registro, junto com cada desvio do
+          plano original.
+        </p>
+        <div class="cols">
+          <div class="reveal">
+            <ul class="bullets">
+              <li><strong>Poder:</strong> 6 cenários por estrato; intervalos largos.</li>
+              <li><strong>Limite de turnos:</strong> não variado; afeta mais o braço vetorial.</li>
+              <li><strong>Teto:</strong> files ≥ 0,92 deixa pouco espaço para melhorar.</li>
+              <li><strong>Generalização:</strong> corpus sintético, um modelo, um embedder.</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <span class="tag">Principais desvios</span>
+            <ul>
+              <li>Embedder fixado após piloto em que todos bateram no teto</li>
+              <li>Primeira rodada descartada: o corpus vazou para os braços com banco</li>
+              <li>Limite de 12 turnos adicionado antes das rodadas válidas</li>
+              <li>Comparações só de recuperação (BM25, MRR) não implementadas</li>
+              <li>CLI ignora <code>--direction outgoing</code></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 20. IMPACTO E ENTREGAS -->
+    <section class="slide">
+      <div class="slide-meta"><span class="kicker">Impacto</span><span>20</span></div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">8</span>Impacto e entregas</h2>
+        <p class="summary reveal">
+          O valor demonstrado é reprodutibilidade e explicabilidade, entregue como software aberto,
+          artigo e registro.
+        </p>
+        <div class="grid">
+          <div class="card reveal">
+            <span class="tag">RAG reproduzível</span>
+            <p>
+              Ordem especificada e proveniência permitem guardar o contexto esperado e testar
+              regressões.
+            </p>
+          </div>
+          <div class="card reveal">
+            <span class="tag">Memória de agentes</span>
+            <p>Um arquivo dentro do processo, sem serviço para operar.</p>
+          </div>
+          <div class="card reveal">
+            <span class="tag">Base de pesquisa</span>
+            <p>Harness, gerador com semente e gabarito exato para avaliar agentes em recuperação.</p>
+          </div>
+        </div>
+        <ul class="bullets check reveal" style="margin-top: var(--content-gap)">
+          <li><strong>Release 0.2.0</strong> no GitHub, licença MIT.</li>
+          <li>Artigo no template da <strong>SoftwareX</strong> (~3.500 de 4.000 palavras).</li>
+          <li>
+            Proteção por <strong>registro de software no INPI</strong> e publicação defensiva; sem
+            patente.
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 21. LIMITAÇÕES E PRÓXIMOS PASSOS -->
+    <section class="slide">
+      <div class="slide-meta">
+        <span class="kicker">Limitações e Próximos Passos</span><span>21</span>
+      </div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">·</span>O que vem depois</h2>
+        <p class="summary reveal">
+          Cada próximo passo nasce de um limite medido neste trabalho.
+        </p>
+        <div class="grid">
+          <div class="card reveal">
+            <span class="tag">Escala</span>
+            <ul>
+              <li>Índice vetorial aproximado, reconstruível</li>
+              <li>Busca exata como fallback e referência de recall</li>
+              <li>Caminho de leitura concorrente</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <span class="tag">Segurança</span>
+            <ul>
+              <li>Filtros aplicados em cada salto da expansão</li>
+              <li>Hoje filtram só as sementes</li>
+              <li>Pré-requisito para dados multi-tenant</li>
+            </ul>
+          </div>
+          <div class="card reveal">
+            <span class="tag">Evidência</span>
+            <ul>
+              <li>Estudo em cenário onde a recuperação é necessária</li>
+              <li>Comparações só de recuperação</li>
+              <li>Baseline de stack composta</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 22. CONCLUSÃO -->
+    <section class="slide">
+      <div class="slide-meta"><span class="kicker">Conclusão</span><span>22</span></div>
+      <div class="slide-content">
+        <h2 class="reveal"><span class="num">9</span>Conclusão</h2>
+        <p class="summary reveal">
+          O CheguersDB reúne num único arquivo transacional o que um retriever HybridRAG costuma
+          espalhar por dois bancos.
+        </p>
+        <ul class="bullets check reveal">
+          <li>Ranking <strong>determinístico</strong>, com a explicação de cada resultado.</li>
+          <li>
+            Custos medidos: travessia em <strong>1–2 ms</strong>; busca exata em
+            <strong>~34 ms</strong>, linear no tamanho do corpus.
+          </li>
+          <li>
+            No estudo pré-registrado, o banco <strong>não melhorou a acurácia</strong> sobre um agente
+            com Python, e a vantagem do grafo sobre o vetor não resistiu à correção.
+          </li>
+          <li>
+            Afirmar que o CheguersDB ajuda agentes exige um cenário em que a recuperação seja
+            necessária — o próximo estudo.
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 23. ENCERRAMENTO -->
+    <section class="slide title-slide closing">
+      <div class="slide-meta"><span class="kicker">Obrigado</span><span>23</span></div>
+      <div class="slide-content">
+        <p class="eyebrow reveal">Perguntas</p>
+        <h1 class="reveal">Obrigado.</h1>
+        <table class="meta-table reveal">
+          <tr>
+            <td>Repositório</td>
+            <td>github.com/cheguers/cheguers · release <code>0.2.0</code></td>
+          </tr>
+          <tr>
+            <td>Stack</td>
+            <td>TypeScript · Node.js 24 · Effect · Turso · pnpm</td>
+          </tr>
+          <tr>
+            <td>Licença</td>
+            <td>MIT</td>
+          </tr>
+          <tr>
+            <td>Reprodução</td>
+            <td>
+              <code>pnpm bench</code> · <code>bench/agent-eval</code> · dados em
+              <code>docs/paper/data</code>
+            </td>
+          </tr>
+        </table>
+        <div class="authors reveal">
+          Rafael Coutinho · Davi Arantes · Kaleb Isaias · orientação: José Romualdo
+          <div class="affil">Instituto de Tecnologia e Liderança (Inteli)</div>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      /* ===========================================
+   CONTROLADOR DA APRESENTAÇÃO
+   Navegação por teclado, roda do mouse, toque,
+   barra de progresso, pontos de navegação e
+   animações disparadas por Intersection Observer.
+   =========================================== */
+      class SlidePresentation {
+        constructor() {
+          this.slides = Array.from(document.querySelectorAll(".slide"));
+          this.current = 0;
+          this.progressBar = document.getElementById("progressBar");
+          this.navDots = document.getElementById("navDots");
+          this.buildDots();
+          this.observe();
+          this.bindEvents();
+          this.update();
+        }
+
+        buildDots() {
+          this.slides.forEach((_, i) => {
+            const b = document.createElement("button");
+            b.setAttribute("aria-label", "Ir para o slide " + (i + 1));
+            b.addEventListener("click", () => this.goTo(i));
+            this.navDots.appendChild(b);
+          });
+        }
+
+        // Anima slides ao entrarem na viewport
+        observe() {
+          const io = new IntersectionObserver(
+            (entries) => {
+              entries.forEach((e) => {
+                if (e.isIntersecting) {
+                  e.target.classList.add("visible");
+                  this.current = this.slides.indexOf(e.target);
+                  this.update();
+                }
+              });
+            },
+            { threshold: 0.5 },
+          );
+          this.slides.forEach((s) => io.observe(s));
+        }
+
+        update() {
+          const pct = (this.current / (this.slides.length - 1)) * 100;
+          this.progressBar.style.width = pct + "%";
+          Array.from(this.navDots.children).forEach((d, i) =>
+            d.classList.toggle("active", i === this.current),
+          );
+        }
+
+        goTo(i) {
+          if (i < 0 || i >= this.slides.length) return;
+          this.slides[i].scrollIntoView({ behavior: "smooth" });
+        }
+
+        bindEvents() {
+          document.addEventListener("keydown", (e) => {
+            if (["ArrowDown", "ArrowRight", " ", "PageDown"].includes(e.key)) {
+              e.preventDefault();
+              this.goTo(this.current + 1);
+            } else if (["ArrowUp", "ArrowLeft", "PageUp"].includes(e.key)) {
+              e.preventDefault();
+              this.goTo(this.current - 1);
+            } else if (e.key === "Home") {
+              e.preventDefault();
+              this.goTo(0);
+            } else if (e.key === "End") {
+              e.preventDefault();
+              this.goTo(this.slides.length - 1);
+            }
+          });
+
+          // Suporte a toque
+          let startY = 0;
+          document.addEventListener("touchstart", (e) => (startY = e.touches[0].clientY), {
+            passive: true,
+          });
+          document.addEventListener(
+            "touchend",
+            (e) => {
+              const dy = startY - e.changedTouches[0].clientY;
+              if (Math.abs(dy) > 50) this.goTo(this.current + (dy > 0 ? 1 : -1));
+            },
+            { passive: true },
+          );
+        }
+      }
+
+      new SlidePresentation();
+    </script>
+  </body>
+</html>
